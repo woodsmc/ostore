@@ -10,11 +10,11 @@ This document describes the API provided by OStore. It does not define the file 
 
 ## Document Version History
 
-| Version | Date          | Author      | Comment                    |
-| ------- | ------------- | ----------- | -------------------------- |
-| 0.1     | August 4 2020 | Chris Woods | Initial concept documented |
-|         |               |             |                            |
-|         |               |             |                            |
+| Version | Date           | Author      | Comment                           |
+| ------- | -------------- | ----------- | --------------------------------- |
+| 0.1     | August 4 2020  | Chris Woods | Initial concept documented        |
+| 0.2     | August 27 2020 | Chris Woods | Refined as part of implementation |
+|         |                |             |                                   |
 
 
 
@@ -46,13 +46,28 @@ Objects need to be "Opened" prior to reading or writing, and close when operatio
 
 ## Store Handling
 
+### Data Types
+
+#### `TOStreamMode`
+
+```c
+typedef enum {
+    EReadOnly,
+    EReadWrite
+} TOStreamMode;
+```
+
+This enumerated data type is used by `ostore_open` to indicate how a file should be opened, either as a read only mode (`EReadOnly`) or in a Read and Write mode (`EReadWrite`).
+
+### Functions
+
 #### `ostore_open`
 
 ```c
 int ostore_open(const char* filename, TOStreamMode mode, TOStoreHnd* oStore)
 ```
 
-**Function Description:** Opens an OStore file. The file can be opened in read only, or read/write modes. If the file is doesn't exist and the mode is read/write, then the file will be created. If the file doesn't exist and an attempt is made to open it in a read only mode then an error will be returned.
+**Function Description:** Opens an OStore file. The file can be opened in read only, or read/write modes. If the file doesn't exist then an error will be returned.
 **Parameters:** 
 
 - `filename` : a string representation of the filename to open
@@ -75,6 +90,36 @@ This function will assert on:
 - `oStore` contains NULL
 - `filename` is NULL
 - `mode` is not one of the pre-supplied enum values
+
+
+
+#### `ostore_create`
+
+```c
+int ostore_create(const char* filename, TOStoreHnd* oStore)
+```
+
+**Function Description:** Creates an OStore file. If the file cannot be created,  then an error will be returned. By default this opens the file with `EReadWrite`.
+**Parameters:** 
+
+- `filename` : a string representation of the filename to open
+- `oStore`: A pointer to a OStore handle, this handle will be set correctly upon success
+
+**Returns**
+
+- On success:
+  - `oStore` contains a handle to a valid `oStore` object
+  - returns `0`
+- On Failure:
+  - `oStore` value is undefined (do not use it)
+  - returns a system error code indicating failure
+
+Notes:
+
+This function will assert on:
+
+- `oStore` contains NULL
+- `filename` is NULL
 
 
 
@@ -217,6 +262,7 @@ This function will assert on:
 
 - `oStore` is not valid.
 - `id` : The ID already exists.
+- The file has been opened in read only (`EReadOnly`) mode.
 
 #### `ostrore_addObject`
 
@@ -246,6 +292,7 @@ This function will assert on:
 
 - `oStore` is not valid.
 - `id` : The pointer is NULL.
+- The file has been opened in read only (`EReadOnly`) mode.
 
 #### `ostore_removeObject`
 
@@ -273,6 +320,7 @@ This function will assert on:
 
 - `oStore` is not valid.
 - `id` : The ID does not exist.
+- The file has been opened in read only (`EReadOnly`) mode.
 
 ### Object Operations
 
@@ -282,7 +330,7 @@ This function will assert on:
 int ostoreobj_setLength(TOStoreHnd oStore, TOStoreObjID id, uint32_t length);
 ```
 
-**Function Description:** Sets the length of the object within the store. This can be used to extend the objects length and force allocate more space to it, or alternatively it can be used to truncate the object and release space that has been assigned to it.
+**Function Description:** Sets the length of an object within the store. This can be used to extend the objects length and force allocate more space to it, or alternatively it can be used to truncate the object and release space that has been assigned to it.
 **Parameters:** 
 
 - `oStore`: An OStore handle, for an open OStore.
@@ -332,6 +380,7 @@ This function will assert on:
 
 - `oStore` is not valid.
 - `id` : The ID does not exist.
+- The file has been opened in read only (`EReadOnly`) mode.
 
 ### Reading and Writing Data
 
@@ -402,3 +451,4 @@ This function will assert on:
 - `oStore` is not valid.
 - `id` : The ID does not exist.
 - `source` is NULL.
+- The file has been opened in read only (`EReadOnly`) mode.

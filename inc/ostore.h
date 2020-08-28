@@ -23,6 +23,13 @@
 
 #include <stdint.h>
 
+#define ERR_OK 0                // no error
+#define ERR_NOT_FOUND -1        // not found
+#define ERR_GEN -2              // general unknown error
+#define ERR_OVERFLOW -3         // overflow
+#define ERR_MEM -4              // malloc fails
+#define ERR_CORRUPT -5          // data is corrupted
+
 typedef enum {
     EReadOnly,
     EReadWrite
@@ -31,17 +38,17 @@ typedef enum {
 typedef struct TOStore;
 typedef TOStore* TOStoreHnd;
 typedef struct TOStoreObj;
-typedef TOStoreObj* TOStoreObjHnd;
 typedef uint32_t TOStoreObjID;
 
 // Store Handling
 int ostore_open(const char* filename, TOStreamMode mode, TOStoreHnd* oStore);
+int ostore_create(const char* filename, TOStoreHnd* oStore);
 void ostore_close(TOStoreHnd* oStore);
 
 // Object Inspection
 int ostore_enumerateObjects(TOStoreHnd oStore, uint32_t* numerOfObjects);
 int ostore_getObjectIdFromIndex(TOStoreHnd oStore, uint32_t objectIndex, TOStoreObjID* id);
-int ostore_objectIdExists(TOStoreHnd oStore, TStoreObjectID id);
+int ostore_objectIdExists(TOStoreHnd oStore, TOStoreObjID id);
 
 // Object Management
 int ostrore_addObjectWithId(TOStoreHnd oStore, TOStoreObjID id);
