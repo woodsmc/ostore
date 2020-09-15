@@ -46,7 +46,7 @@ int ostore_create(const char* filename, TOStoreHnd* oStore);
 void ostore_close(TOStoreHnd* oStore);
 
 // Object Inspection
-int ostore_enumerateObjects(TOStoreHnd oStore, uint32_t* numerOfObjects);
+int ostore_enumerateObjects(TOStoreHnd oStore, uint32_t* numberOfObjects);
 int ostore_getObjectIdFromIndex(TOStoreHnd oStore, uint32_t objectIndex, TOStoreObjID* id);
 int ostore_objectIdExists(TOStoreHnd oStore, TOStoreObjID id);
 
