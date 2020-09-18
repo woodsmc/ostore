@@ -138,6 +138,8 @@ int writeBlockHeader(TOStore* store, const TDskObjectStoreBlockHeader* header);
 int readBlockHeader(TOStore* store, TDskObjectStoreBlockHeader* header, uint32_t index);
 int readWithHeader(TOStore* store, const TDskOStoreObjectHeader* header, uint32_t position, uint32_t length, void* destination);
 int readObjectHeader(TOStoreHnd oStore, TOStoreObjID id, TDskOStoreObjectHeader* header);
+int addObjectHeader(TOStore* store, TDskOStoreObjectHeader* header);
+
 int writeObjectHeader(TOStoreHnd oStore, TOStoreObjID id, TDskOStoreObjectHeader* header);
 int writeWithHeader(TOStore* store, const TDskOStoreObjectHeader* header, uint32_t position, uint32_t length, void* source);
 

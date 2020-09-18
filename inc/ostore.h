@@ -29,6 +29,7 @@
 #define ERR_OVERFLOW -3         // overflow
 #define ERR_MEM -4              // malloc fails
 #define ERR_CORRUPT -5          // data is corrupted
+#define ERR_ALREADY_EXISTS -5   // it already exists
 
 typedef enum {
     EReadOnly,
@@ -51,8 +52,8 @@ int ostore_getObjectIdFromIndex(TOStoreHnd oStore, uint32_t objectIndex, TOStore
 int ostore_objectIdExists(TOStoreHnd oStore, TOStoreObjID id);
 
 // Object Management
-int ostrore_addObjectWithId(TOStoreHnd oStore, TOStoreObjID id);
-int ostrore_addObject(TOStoreHnd oStore, TOStoreObjID* id);
+int ostrore_addObjectWithId(TOStoreHnd oStore, TOStoreObjID id, uint32_t length);
+int ostrore_addObject(TOStoreHnd oStore, TOStoreObjID* id, uint32_t length);
 int ostore_removeObject(TOStoreHnd oStore, TOStoreObjID id);
 
 // Object Operations

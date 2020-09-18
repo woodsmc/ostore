@@ -155,24 +155,95 @@ int ostore_enumerateObjects(TOStoreHnd oStore, uint32_t* numberOfObjects) {
 
 int ostore_getObjectIdFromIndex(TOStoreHnd oStore, uint32_t objectIndex, TOStoreObjID* id) {
     assert(oStore != NULL);
-    assert(id != NULL);
+    assert(*oStore != NULL);
+    assert(id != NULL);    
+
+    START;
+    TOStore* store = (*oStore);
+    assert(objectIndex < store->numberOfObjects);
+    uint32_t offset = sizeof(uint32_t);
+    
+    retval = ERR_NOT_FOUND;
+    for(uint32_t i = 0; i < store->numberOfObjects; i++) {
+        LOCAL_MEMZ(TDskOStoreObjectHeader, header);
+        offset = (i * sizeof(TDskOStoreObjectHeader)) + sizeof(uint32_t);        
+        retval = readWithHeader(store, &store->tableOfObjectsHeader.header, offset, sizeof(TDskOStoreObjectHeader), &header);
+        IF_NOT_OK_HANDLE_ERROR(retval);
+        if (i == objectIndex) {
+            (*id) = header.id;
+            break;
+        }
+    }
+
+    PROCESS_ERROR;
+
+    FINISH;    
 }
 
 int ostore_objectIdExists(TOStoreHnd oStore, TOStoreObjID id) {
     assert(oStore != NULL);
+    assert(*oStore != NULL);
+
+    START;
+    TOStore* store = (*oStore);
+    uint32_t offset = sizeof(uint32_t);
+    bool found = false;
+
+    retval = ERR_NOT_FOUND;
+    for(uint32_t i = 0; i < store->numberOfObjects; i++) {
+        LOCAL_MEMZ(TDskOStoreObjectHeader, header);
+        offset = (i * sizeof(TDskOStoreObjectHeader)) + sizeof(uint32_t);        
+        retval = readWithHeader(store, &store->tableOfObjectsHeader.header, offset, sizeof(TDskOStoreObjectHeader), &header);
+        IF_NOT_OK_HANDLE_ERROR(retval);
+        if (header.id == id) {
+            found = true;
+            break;
+        }
+    }
+
+    if ( !found ) {
+        retval = ERR_NOT_FOUND;
+    }
+
+    PROCESS_ERROR;
+
+    FINISH;    
 }
 
 // Object Management
-int ostrore_addObjectWithId(TOStoreHnd oStore, TOStoreObjID id) {
+int ostrore_addObjectWithId(TOStoreHnd oStore, TOStoreObjID id, uint32_t length) {
     assert(oStore != NULL);
+    assert(*oStore != NULL);
+    // check to make sure an object with the same id doesn't exist
+    START;
+    retval = ostore_objectIdExists(oStore, id);
+    if ( retval != ERR_NOT_FOUND) {
+        retval = ERR_ALREADY_EXISTS;        
+    } else {
+        retval = ERR_OK;
+    }
+    IF_NOT_OK_HANDLE_ERROR(retval);
+    
+    // add the object header entry
+    // assign space to the 
+    PROCESS_ERROR;
+    FINISH;
 }
 
-int ostrore_addObject(TOStoreHnd oStore, TOStoreObjID* id) {
+int ostrore_addObject(TOStoreHnd oStore, TOStoreObjID* id, uint32_t length) {
     assert(oStore != NULL);
+    assert(*oStore != NULL);
+    // find the next available object id
+    // add the object with the ID
 }
 
 int ostore_removeObject(TOStoreHnd oStore, TOStoreObjID id) {
     assert(oStore != NULL);
+    assert(*oStore != NULL);
+    // find the object with the matching id to remove
+    // then compact the array to remove it
+    // then update the counters
+    
 }
 
 // Object Operations

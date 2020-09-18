@@ -246,6 +246,38 @@ int writeWithHeader(TOStore* store, const TDskOStoreObjectHeader* header, uint32
     FINISH;
 }
 
+int addObjectHeader(TOStore* store, TDskOStoreObjectHeader* header) {
+    // ensure that there is enough space for the object header
+    // then add the header at the next index    
+    // update counter in file.
+    // update in memory data structure
+
+    assert(store != NULL);
+    assert(header != NULL);
+
+    START;
+    uint32_t originalObjectCount = store->numberOfObjects;
+    uint32_t nextObjectCount = originalObjectCount + 1;
+    uint32_t spaceRequired = sizeof(uint32_t) + ( (nextObjectCount+1) * sizeof(TDskOStoreObjectHeader));
+    retval = setLengthWithHeader(store, &(store->tableOfObjectsHeader.header), spaceRequired);
+    IF_NOT_OK_HANDLE_ERROR(retval);
+
+    uint32_t offset = sizeof(uint32_t) + (nextObjectCount * sizeof(TDskOStoreObjectHeader));
+    retval = writeWithHeader(store, &(store->tableOfObjectsHeader.header), offset, sizeof(TDskOStoreObjectHeader), header);
+    IF_NOT_OK_HANDLE_ERROR(retval);
+
+    retval = writeWithHeader(store, &(store->tableOfObjectsHeader.header), 0, sizeof(uint32_t), &nextObjectCount);
+    IF_NOT_OK_HANDLE_ERROR(retval);
+
+    store->numberOfObjects = nextObjectCount;
+    PROCESS_ERROR;
+    // remove object, if created - that is done by simply setting the counter back 
+    // to the origin value and ensuring the file and disk are aligned.
+    store->numberOfObjects = originalObjectCount;
+    retval = writeWithHeader(store, &(store->tableOfObjectsHeader.header), 0, sizeof(uint32_t), &originalObjectCount);
+    FINISH;
+}
+
 int writeObjectHeader(TOStoreHnd oStore, TOStoreObjID id, TDskOStoreObjectHeader* header) {
     assert(oStore);
     assert(header);
@@ -309,16 +341,6 @@ int readObjectHeader(TOStoreHnd oStore, TOStoreObjID id, TDskOStoreObjectHeader*
 
     PROCESS_ERROR;
 
-/*
-    clear the header
-    then read the number of entiries in the object header object
-    for each object header
-        calculate offset
-        read header item into header ptr
-        readWithHeader()
-        if header ptr now matches the id of the header we are after then stop
-
-*/
     FINISH;
 }
 
@@ -326,18 +348,6 @@ int readObjectHeader(TOStoreHnd oStore, TOStoreObjID id, TDskOStoreObjectHeader*
 
 // Reading and Writing Data
 int readWithHeader(TOStore* store, const TDskOStoreObjectHeader* header, uint32_t position, uint32_t length, void* destination) {
-    /*
-    if ( read goes over the length of the block) then
-        return an error code
-    else
-        read the data into the supplied buffer
-        
-        calculate block to start reading in based on the offset
-        while (there is still data to read)
-            read data from that block into buffer, update offset
-            move to next block
-
-    */
    START;
 
    uint32_t objectSizeInBytes = store->fileHeader.header.blockSize * header->numberOfBlocks;

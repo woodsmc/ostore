@@ -239,7 +239,7 @@ This function will assert on:
 #### `ostrore_addObjectWithId`
 
 ```c
-int ostrore_addObjectWithId(TOStoreHnd oStore, TOStoreObjID id);
+int ostrore_addObjectWithId(TOStoreHnd oStore, TOStoreObjID id, uint32_t length);
 ```
 
 **Function Description:** Adds an object to the store with a specified ID.
@@ -248,11 +248,12 @@ int ostrore_addObjectWithId(TOStoreHnd oStore, TOStoreObjID id);
 
 - `oStore`: An OStore handle, for an open OStore.
 - `id` : The ID to assign to the object.
+- `length` : The amount of space to allocate to the object, can be zero
 
 **Returns**
 
 - On success:
-  - returns `0`, and the object with the `id` has been created with zero length.
+  - returns `0`, and the object with the `id` has been created with the requested length.
 - On Failure:
   - returns a system error code indicating failure, no object is created.
 
@@ -267,7 +268,7 @@ This function will assert on:
 #### `ostrore_addObject`
 
 ```c
-int ostrore_addObject(TOStoreHnd oStore, TOStoreObjID* id);
+int ostrore_addObject(TOStoreHnd oStore, TOStoreObjID* id, uint32_t length);
 ```
 
 **Function Description:** Adds an object to the store with a specified ID.
@@ -276,6 +277,7 @@ int ostrore_addObject(TOStoreHnd oStore, TOStoreObjID* id);
 
 - `oStore`: An OStore handle, for an open OStore.
 - `id` : A pointer to an ID. On success this will be populated with the ID of the Object that was created.
+- `length` : The amount of space to allocate to the object, can be zero.
 
 **Returns**
 
