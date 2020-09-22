@@ -2,19 +2,19 @@
 
 
 
-int setLengthWithHeader(TOStore* store, TDskOStoreObjectHeader* head, uint32_t lengthRequested) {
+int setLengthWithIndex(TOStore* store, TDskObjIndex* head, uint32_t lengthRequested) {
     START;
     uint32_t numberOfBlockRequested = lengthRequested / store->fileHeader.header.blockSize;    
 
     if (numberOfBlockRequested > head->numberOfBlocks) {
         // add blocks
         uint32_t blocksToAdd = numberOfBlockRequested - head->numberOfBlocks;
-        retval = growLengthWithHeader(store, head, blocksToAdd);
+        retval = growLengthWithIndex(store, head, blocksToAdd);
         IF_NOT_OK_HANDLE_ERROR(retval);
     } else if (numberOfBlockRequested < head->numberOfBlocks) {
         // remove available blocks from trash
         uint32_t blocksToRemove = head->numberOfBlocks - numberOfBlockRequested;
-        retval = shirnkLengthWithHeader(store, head, blocksToRemove);
+        retval = shirnkLengthWithIndex(store, head, blocksToRemove);
         IF_NOT_OK_HANDLE_ERROR(retval);
     }
 
@@ -23,7 +23,7 @@ int setLengthWithHeader(TOStore* store, TDskOStoreObjectHeader* head, uint32_t l
     FINISH;
 }
 
-int growLengthWithHeader(TOStore* store, TDskOStoreObjectHeader* head, uint32_t blocksToAdd) {
+int growLengthWithIndex(TOStore* store, TDskObjIndex* head, uint32_t blocksToAdd) {
     START;
     uint32_t blocksAvailableFromTrash = store->tashHeader.header.numberOfBlocks;
     uint32_t blocksToTakeFromTrash = blocksAvailableFromTrash;
@@ -44,38 +44,45 @@ int growLengthWithHeader(TOStore* store, TDskOStoreObjectHeader* head, uint32_t 
     if ( blocksToTakeFromTrash > 0) {        
         retval = removeBlocks(store, head, &blockhead, blocksToTakeFromTrash);
         IF_NOT_OK_HANDLE_ERROR(retval);
-        retval = addBlocks(store, head, &blockhead);
+        retval = addBlocksToIndex(store, head, &blockhead);
         IF_NOT_OK_HANDLE_ERROR(retval);
     }
 
-    retval = readBlockHeader(store, &blockhead, head->tailBlock);
-    IF_NOT_OK_HANDLE_ERROR(retval);
-    sequenceNumber = blockhead.sequenceNumber;
-    lastBlockNumber = blockhead.id;
+    
 
-    // add the new stuff
-    while ( blocksToAddToFile > 0) {
-        blockhead.sequenceNumber++;
-        blockhead.blockFileIndex = store->fileHeader.header.blocksInFile++;
-        store->fileHeader.dirtyflag = true;
-        blockhead.last = lastBlockNumber;
+    LOCAL_MEMZ(TDskObjectStoreBlockHeader, brandNewBlocks);
+    bool startOfNewBlocksSaved = false;
+    // add a linked list of empty blocks to the end of the file    
+    memset(&blockhead, 0, sizeof(TDskObjectStoreBlockHeader));
+    while ( blocksToAddToFile > 0) {        
+        blockhead.blockFileIndex = store->fileHeader.header.blocksInFile++; 
+        if(blockhead.sequenceNumber == 0) {
+            blockhead.last = NO_BLOCK;
+        } else {
+            blockhead.last = lastBlockNumber;
+        }
+        
         if ( blocksToAddToFile > 1 ) {
-            blockhead.next = sequenceNumber;
+            blockhead.next = blockhead.sequenceNumber + 1;
         } else {
             blockhead.next = NO_BLOCK;
         }
-        addBlockToFile(store->fp, &blockhead, store->fileHeader.header.blockSize);
-
+        if (!startOfNewBlocksSaved) {
+            memcpy(&brandNewBlocks, &blockhead, sizeof(TDskObjectStoreBlockHeader));
+        }
+        startOfNewBlocksSaved = true;
+        retval = addBlockToFile(store->fp, &blockhead, store->fileHeader.header.blockSize);
+        IF_NOT_OK_HANDLE_ERROR(retval);
+        blockhead.sequenceNumber++;
+        lastBlockNumber = blockhead.blockFileIndex;
+        blocksToAddToFile--;
     }
 
-    if ( store->fileHeader.dirtyflag) {
-        store->fileHeader.dirtyflag = false;
-        retval = writeToFile(store->fp, 0, sizeof(TDskObjectStoreFileHeader), &store->fileHeader.header);
+    // then add them to the index we are dealing with
+    if ( startOfNewBlocksSaved) {        
+        retval = addBlocksToIndex(store, head, &brandNewBlocks);
         IF_NOT_OK_HANDLE_ERROR(retval);
     }
-
-    retval = writeObjectHeader(&store, head->id, head);
-    IF_NOT_OK_HANDLE_ERROR(retval);
 
     PROCESS_ERROR;
 
@@ -84,14 +91,14 @@ int growLengthWithHeader(TOStore* store, TDskOStoreObjectHeader* head, uint32_t 
 
 
 
-int shirnkLengthWithHeader(TOStore* store, TDskOStoreObjectHeader* head, uint32_t blocksToRemove) {
+int shirnkLengthWithIndex(TOStore* store, TDskObjIndex* head, uint32_t blocksToRemove) {
     // remove the necessary blocks from one object, then add them to the other.
     START;
     LOCAL_MEMZ(TDskObjectStoreBlockHeader, blocks);
 
     retval = removeBlocks(store, head, &blocks, blocksToRemove);
     IF_NOT_OK_HANDLE_ERROR(retval);
-    retval = addBlocks(store, head, &blocks);
+    retval = addBlocksToIndex(store, head, &blocks);
 
     PROCESS_ERROR;
 
@@ -105,10 +112,16 @@ int shirnkLengthWithHeader(TOStore* store, TDskOStoreObjectHeader* head, uint32_
     This function removes blocks from an object. It does not add them to another block (the free chain)
     it just leaves them dangling. 
 */
-static int removeBlocks(TOStore* store, TDskOStoreObjectHeader* head, TDskObjectStoreBlockHeader* freeBlocks, uint32_t numberOfBlocksToRemove) {
+ int removeBlocks(TOStore* store, TDskObjIndex* index, TDskObjectStoreBlockHeader* freeBlocks, uint32_t numberOfBlocksToRemove) {
+    assert(store);
+    assert(index);
+    assert(freeBlocks);
+    assert(numberOfBlocksToRemove > 0);
+    assert(numberOfBlocksToRemove < index->numberOfBlocks);
+
     START;
     LOCAL_MEMZ(TDskObjectStoreBlockHeader, currentBlock);
-    retval = readBlockHeader(store, &currentBlock, head->tailBlock);
+    retval = readBlockHeader(store, &currentBlock, index->tailBlock);
     uint32_t counter = numberOfBlocksToRemove;
     while(counter != 0) {            
         retval = readBlockHeader(store, &currentBlock, currentBlock.last);
@@ -120,7 +133,7 @@ static int removeBlocks(TOStore* store, TDskOStoreObjectHeader* head, TDskObject
     IF_NOT_OK_HANDLE_ERROR(retval);
     
     // update blocks and write them back to disk, then update header
-    head->tailBlock = currentBlock.blockFileIndex;
+    index->tailBlock = currentBlock.blockFileIndex;
     freeBlocks->last = NO_BLOCK;
     currentBlock.next = NO_BLOCK;
     
@@ -130,8 +143,9 @@ static int removeBlocks(TOStore* store, TDskOStoreObjectHeader* head, TDskObject
     retval = writeBlockHeader(store, &currentBlock);
     IF_NOT_OK_HANDLE_ERROR(retval);
 
-    // write the update to the header (head)
-    retval = writeObjectHeader(&store, head->id, head);
+    // write the update to the index
+    index->numberOfBlocks -= numberOfBlocksToRemove;
+    retval = writeObjectIndex(&store, index->id, index);
     IF_NOT_OK_HANDLE_ERROR(retval);
     
     // blocks are now removed and floating.
@@ -144,21 +158,26 @@ static int removeBlocks(TOStore* store, TDskOStoreObjectHeader* head, TDskObject
     Must deal with the head being emnpty, both head and tail pointing to NO_BLOCK...
     Must also resequence the blocks.
 */
-int addBlocks(TOStore* store, TDskOStoreObjectHeader* head, TDskObjectStoreBlockHeader* newBlocks) {
+int addBlocksToIndex(TOStore* store, TDskObjIndex* index, TDskObjectStoreBlockHeader* newBlocks) {
+    assert(store);
+    assert(index);
+    assert(newBlocks);
+
     START;
 
     LOCAL_MEMZ(TDskObjectStoreBlockHeader, currentBlock);
     uint32_t tailBlock = 0;
     uint32_t sequenceNumber = 0;
+    uint32_t numberOfNewBlocks = 0;
 
     // update head and write it.
-    if ( head->headBlock == NO_BLOCK) {
-        head->headBlock;
+    if ( index->headBlock == NO_BLOCK) {
+        index->headBlock;
         // there is no need to update the last block 
         newBlocks->last = NO_BLOCK;        
     } else {
         // update the last block
-        retval = readBlockHeader(store, &currentBlock, head->tailBlock);
+        retval = readBlockHeader(store, &currentBlock, index->tailBlock);
         IF_NOT_OK_HANDLE_ERROR(retval);
         sequenceNumber = currentBlock.sequenceNumber;
         currentBlock.next = newBlocks->blockFileIndex;
@@ -173,19 +192,22 @@ int addBlocks(TOStore* store, TDskOStoreObjectHeader* head, TDskObjectStoreBlock
     tailBlock = currentBlock.blockFileIndex;
     retval = writeBlockHeader(store, &currentBlock);
     IF_NOT_OK_HANDLE_ERROR(retval);
+    numberOfNewBlocks = 1;
 
     while(currentBlock.next != NO_BLOCK) {
         retval = readBlockHeader(store, &currentBlock, currentBlock.next);        
         IF_NOT_OK_HANDLE_ERROR(retval);
         tailBlock = currentBlock.blockFileIndex;
         currentBlock.sequenceNumber = sequenceNumber++;
-        currentBlock.id = head->id;
+        currentBlock.id = index->id;
+        numberOfNewBlocks++;
         retval = writeBlockHeader(store, &currentBlock);
         IF_NOT_OK_HANDLE_ERROR(retval);
     };
 
-    head->tailBlock = tailBlock;
-    retval = writeObjectHeader(&store, head->id, head);
+    index->tailBlock = tailBlock;
+    index->numberOfBlocks = numberOfNewBlocks;
+    retval = writeObjectIndex(&store, index->id, index);
     IF_NOT_OK_HANDLE_ERROR(retval);
 
     PROCESS_ERROR;
@@ -193,7 +215,7 @@ int addBlocks(TOStore* store, TDskOStoreObjectHeader* head, TDskObjectStoreBlock
 }
 
 
-int writeWithHeader(TOStore* store, const TDskOStoreObjectHeader* header, uint32_t position, uint32_t length, void* source) {
+int writeWithIndex(TOStore* store, const TDskObjIndex* header, uint32_t position, uint32_t length, void* source) {
     START;
     uint32_t sequenceNumber = 0;
     uint32_t startingBlock = position / store->fileHeader.header.blockSize;
@@ -246,7 +268,7 @@ int writeWithHeader(TOStore* store, const TDskOStoreObjectHeader* header, uint32
     FINISH;
 }
 
-int addObjectHeader(TOStore* store, TDskOStoreObjectHeader* header) {
+int addObjectIndex(TOStore* store, TDskObjIndex* header) {
     // ensure that there is enough space for the object header
     // then add the header at the next index    
     // update counter in file.
@@ -258,15 +280,15 @@ int addObjectHeader(TOStore* store, TDskOStoreObjectHeader* header) {
     START;
     uint32_t originalObjectCount = store->numberOfObjects;
     uint32_t nextObjectCount = originalObjectCount + 1;
-    uint32_t spaceRequired = sizeof(uint32_t) + ( (nextObjectCount+1) * sizeof(TDskOStoreObjectHeader));
-    retval = setLengthWithHeader(store, &(store->tableOfObjectsHeader.header), spaceRequired);
+    uint32_t spaceRequired = sizeof(uint32_t) + ( (nextObjectCount+1) * sizeof(TDskObjIndex));
+    retval = setLengthWithIndex(store, &(store->tableOfObjectsHeader.header), spaceRequired);
     IF_NOT_OK_HANDLE_ERROR(retval);
 
-    uint32_t offset = sizeof(uint32_t) + (nextObjectCount * sizeof(TDskOStoreObjectHeader));
-    retval = writeWithHeader(store, &(store->tableOfObjectsHeader.header), offset, sizeof(TDskOStoreObjectHeader), header);
+    uint32_t offset = sizeof(uint32_t) + (nextObjectCount * sizeof(TDskObjIndex));
+    retval = writeWithIndex(store, &(store->tableOfObjectsHeader.header), offset, sizeof(TDskObjIndex), header);
     IF_NOT_OK_HANDLE_ERROR(retval);
 
-    retval = writeWithHeader(store, &(store->tableOfObjectsHeader.header), 0, sizeof(uint32_t), &nextObjectCount);
+    retval = writeWithIndex(store, &(store->tableOfObjectsHeader.header), 0, sizeof(uint32_t), &nextObjectCount);
     IF_NOT_OK_HANDLE_ERROR(retval);
 
     store->numberOfObjects = nextObjectCount;
@@ -274,11 +296,11 @@ int addObjectHeader(TOStore* store, TDskOStoreObjectHeader* header) {
     // remove object, if created - that is done by simply setting the counter back 
     // to the origin value and ensuring the file and disk are aligned.
     store->numberOfObjects = originalObjectCount;
-    retval = writeWithHeader(store, &(store->tableOfObjectsHeader.header), 0, sizeof(uint32_t), &originalObjectCount);
+    retval = writeWithIndex(store, &(store->tableOfObjectsHeader.header), 0, sizeof(uint32_t), &originalObjectCount);
     FINISH;
 }
 
-int writeObjectHeader(TOStoreHnd oStore, TOStoreObjID id, TDskOStoreObjectHeader* header) {
+int writeObjectIndex(TOStoreHnd oStore, TOStoreObjID id, TDskObjIndex* header) {
     assert(oStore);
     assert(header);
     START;
@@ -286,13 +308,13 @@ int writeObjectHeader(TOStoreHnd oStore, TOStoreObjID id, TDskOStoreObjectHeader
     TOStore* store = (*oStore);
     // try to find the object header, and get the offset location for the write
 
-    LOCAL_MEMZ(TDskOStoreObjectHeader, tempObjHeader);
+    LOCAL_MEMZ(TDskObjIndex, tempObjHeader);
     bool found = false;
     uint32_t offset = sizeof(uint32_t);
     for(uint32_t i = 0; i < store->numberOfObjects; i++) {
-        offset = (i * sizeof(TDskOStoreObjectHeader)) + sizeof(uint32_t);
-        memset(&tempObjHeader, 0, sizeof(TDskOStoreObjectHeader));
-        retval = readWithHeader(store, &store->tableOfObjectsHeader.header, offset, sizeof(TDskOStoreObjectHeader), &tempObjHeader);
+        offset = (i * sizeof(TDskObjIndex)) + sizeof(uint32_t);
+        memset(&tempObjHeader, 0, sizeof(TDskObjIndex));
+        retval = readWithIndex(store, &store->tableOfObjectsHeader.header, offset, sizeof(TDskObjIndex), &tempObjHeader);
         IF_NOT_OK_HANDLE_ERROR(retval);
         if ( header->id == id) {
             found = true;
@@ -304,14 +326,14 @@ int writeObjectHeader(TOStoreHnd oStore, TOStoreObjID id, TDskOStoreObjectHeader
         // check to see if there is space for the new header
         // if no, add the space
         uint32_t numberOfObjects = store->numberOfObjects + 1;
-        uint32_t totalSpaceNeeded = sizeof(uint32_t) + ( numberOfObjects * sizeof(TDskOStoreObjectHeader));
+        uint32_t totalSpaceNeeded = sizeof(uint32_t) + ( numberOfObjects * sizeof(TDskObjIndex));
         if ( totalSpaceNeeded > (store->tableOfObjectsHeader.header.numberOfBlocks * store->fileHeader.header.blockSize) ) {
             retval = ostoreobj_setLength(oStore, store->tableOfObjectsHeader.header.id, totalSpaceNeeded);
             IF_NOT_OK_HANDLE_ERROR(retval);
         }
 
         // increment the number of objects and update the file to reflect it
-        retval = writeWithHeader(store, &store->tableOfObjectsHeader.header, 0, sizeof(uint32_t), &numberOfObjects);
+        retval = writeWithIndex(store, &store->tableOfObjectsHeader.header, 0, sizeof(uint32_t), &numberOfObjects);
         IF_NOT_OK_HANDLE_ERROR(retval);
     }
 
@@ -322,7 +344,7 @@ int writeObjectHeader(TOStoreHnd oStore, TOStoreObjID id, TDskOStoreObjectHeader
     FINISH;
 }
 
-int readObjectHeader(TOStoreHnd oStore, TOStoreObjID id, TDskOStoreObjectHeader* header){
+int readObjectIndex(TOStoreHnd oStore, TOStoreObjID id, TDskObjIndex* header){
     assert(oStore);
     assert(header);
     START;
@@ -331,9 +353,9 @@ int readObjectHeader(TOStoreHnd oStore, TOStoreObjID id, TDskOStoreObjectHeader*
     
     retval = ERR_NOT_FOUND;
     for(uint32_t i = 0; i < store->numberOfObjects; i++) {
-        offset = (i * sizeof(TDskOStoreObjectHeader)) + sizeof(uint32_t);
-        memset(header, 0, sizeof(TDskOStoreObjectHeader));
-        retval = readWithHeader(store, &store->tableOfObjectsHeader.header, offset, sizeof(TDskOStoreObjectHeader), header);
+        offset = (i * sizeof(TDskObjIndex)) + sizeof(uint32_t);
+        memset(header, 0, sizeof(TDskObjIndex));
+        retval = readWithIndex(store, &store->tableOfObjectsHeader.header, offset, sizeof(TDskObjIndex), header);
         IF_NOT_OK_HANDLE_ERROR(retval);
         if ( header->id == id)
             break;
@@ -347,7 +369,7 @@ int readObjectHeader(TOStoreHnd oStore, TOStoreObjID id, TDskOStoreObjectHeader*
 
 
 // Reading and Writing Data
-int readWithHeader(TOStore* store, const TDskOStoreObjectHeader* header, uint32_t position, uint32_t length, void* destination) {
+int readWithIndex(TOStore* store, const TDskObjIndex* header, uint32_t position, uint32_t length, void* destination) {
    START;
 
    uint32_t objectSizeInBytes = store->fileHeader.header.blockSize * header->numberOfBlocks;

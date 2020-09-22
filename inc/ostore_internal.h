@@ -22,12 +22,12 @@
      sizeof(TDskObjectStoreFileHeader) \
      + sizeof(TDskObjectStoreBlockHeader) )
 
-#define FILE_LOCATION_FOR_TABLE_OF_OBJECTS_HEADER (\
+#define FILE_LOCATION_FOR_TABLE_OF_OBJECTS_INDEX (\
      FILE_LOCATION_FOR_NUMBER_OF_OBJECTS \
      + sizeof(uint32_t) )
 
-#define FILE_LOCATION_FOR_TRASH_HEADER (\
-     FILE_LOCATION_FOR_TABLE_OF_OBJECTS_HEADER \
+#define FILE_LOCATION_FOR_TRASH_INDEX (\
+     FILE_LOCATION_FOR_TABLE_OF_OBJECTS_INDEX \
      + sizeof(uint32_t) )
 
 #define OFFSET_FOR_BLOCK(INDEX, SIZE) (sizeof(TDskObjectStoreFileHeader) + (INDEX * (sizeof(TDskObjectStoreBlockHeader) + SIZE)))
@@ -82,13 +82,13 @@ typedef struct
     uint32_t            headBlock;
     uint32_t            tailBlock;
     uint32_t            numberOfBlocks;
-} TDskOStoreObjectHeader;
+} TDskObjIndex;
 
 typedef struct
 {
-    TDskOStoreObjectHeader  header;
+    TDskObjIndex  header;
     bool                    dirtyFlag;
-} TOStoreObjectHeader;
+} TObjIndex;
 
 
 
@@ -97,8 +97,8 @@ typedef struct
     FILE*                   fp;
     TOStreamMode            fileMode;
     TObjectStoreFileHeader  fileHeader;
-    TOStoreObjectHeader     tableOfObjectsHeader;
-    TOStoreObjectHeader     tashHeader;
+    TObjIndex     tableOfObjectsHeader;
+    TObjIndex     tashHeader;
 
     // working memory
     uint32_t                numberOfObjects;    
@@ -126,21 +126,28 @@ typedef struct
 // internal function definitions
 void* zeromalloc(size_t size);
 void zfree( void* ptr );
-int readFromFile(FILE* fp, uint32_t offset, uint32_t length, uint8_t* buffer);
-int writeToFile(FILE* fp, uint32_t offset, uint32_t length, const uint8_t* buffer);
 
-int addBlocks(TOStore* store, TDskOStoreObjectHeader* head, TDskObjectStoreBlockHeader* newBlocks);
-int setLengthWithHeader(TOStore* store, TDskOStoreObjectHeader* head, uint32_t lengthRequested);
-int growLengthWithHeader(TOStore* store, TDskOStoreObjectHeader* head, uint32_t blocksToAdd);
-int shirnkLengthWithHeader(TOStore* store, TDskOStoreObjectHeader* head, uint32_t blocksToRemove);
+
+int addBlocksToIndex(TOStore* store, TDskObjIndex* head, TDskObjectStoreBlockHeader* newBlocks);
+int setLengthWithIndex(TOStore* store, TDskObjIndex* head, uint32_t lengthRequested);
+int growLengthWithIndex(TOStore* store, TDskObjIndex* head, uint32_t blocksToAdd);
+int shirnkLengthWithIndex(TOStore* store, TDskObjIndex* head, uint32_t blocksToRemove);
+
+int readObjectIndex(TOStoreHnd oStore, TOStoreObjID id, TDskObjIndex* header);
+int writeObjectIndex(TOStoreHnd oStore, TOStoreObjID id, TDskObjIndex* header);
+int addObjectIndex(TOStore* store, TDskObjIndex* header);
+
+int readWithIndex(TOStore* store, const TDskObjIndex* header, uint32_t position, uint32_t length, void* destination);
+int writeWithIndex(TOStore* store, const TDskObjIndex* header, uint32_t position, uint32_t length, void* source);
+
+
 int addBlockToFile(FILE* fp, const TDskObjectStoreBlockHeader* header, uint32_t size);
 int writeBlockHeader(TOStore* store, const TDskObjectStoreBlockHeader* header);
 int readBlockHeader(TOStore* store, TDskObjectStoreBlockHeader* header, uint32_t index);
-int readWithHeader(TOStore* store, const TDskOStoreObjectHeader* header, uint32_t position, uint32_t length, void* destination);
-int readObjectHeader(TOStoreHnd oStore, TOStoreObjID id, TDskOStoreObjectHeader* header);
-int addObjectHeader(TOStore* store, TDskOStoreObjectHeader* header);
 
-int writeObjectHeader(TOStoreHnd oStore, TOStoreObjID id, TDskOStoreObjectHeader* header);
-int writeWithHeader(TOStore* store, const TDskOStoreObjectHeader* header, uint32_t position, uint32_t length, void* source);
 
+
+
+int readFromFile(FILE* fp, uint32_t offset, uint32_t length, uint8_t* buffer);
+int writeToFile(FILE* fp, uint32_t offset, uint32_t length, const uint8_t* buffer);
 #endif // OSTOREINTERNAL_H__
