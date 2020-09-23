@@ -7,9 +7,23 @@
 #include <stdint.h>
 #include <fcntl.h>
 #include <assert.h>
-
+#include <stdlib.h>
 #include "ostore.h"
 
+
+// local handy macros
+#define INIT(TYPE, VAR) memset(&VAR, 0, sizeof(TYPE))
+#define INIT_HEAP(TYPE, VAR) memset(VAR, 0, sizeof(TYPE))
+#define LOCAL_MEMZ(TYPE, VAR) TYPE VAR; memset(&VAR, 0, sizeof(TYPE))
+#define HEAP_MEMZ(TYPE, VAR) TYPE* VAR = malloc(sizeof(TYPE)); VALIDATE(VAR != NULL, ERR_MEM); memset(VAR, 0, sizeof(TYPE))
+#define zmalloc( A ) zeromalloc(sizeof(A))
+#define START int retval = 0
+#define VALIDATE( A, B) if ( !(A) ) HANDLE_ERROR(B)
+#define IF_NOT_OK_HANDLE_ERROR( A ) if ( (retval = (A)) != ERR_OK ) HANDLE_ERROR( retval )
+//#define IF_NOT_OK_HANDLE_ERROR if ( retval != ERR_OK ) HANDLE_ERROR( retval )
+#define HANDLE_ERROR(A) { retval = A; goto HandleError; };
+#define PROCESS_ERROR return retval; HandleError:
+#define FINISH return retval;
 
 // File Structures
 #define IS_ERROR(A) ( (A) < 0 )
@@ -36,6 +50,13 @@
 
 #define PHYSICAL_BLOCKSIZE(STORE) (STORE->fileHeader.header.blockSize + sizeof(TDskObjectStoreBlockHeader) )
 
+// default internal IDs
+static const uint32_t OBJECT_TABLE_ID = 0;
+static const uint32_t TRASH_TABLE_ID = 1;
+static const uint32_t DEFUALT_BLOCKSIZE = 128;
+static const uint32_t VERSION = 1;
+static const uint32_t INITIAL_NUMBER_OF_OBJECTS = 2;
+static const uint32_t NO_BLOCK = 0xFFFFFFFF;
 
 // structure definitions
 static const int8_t FILE_ID[4] = { 'O', 'S', 'T', 'R'};
@@ -43,12 +64,7 @@ static const int8_t BLOCK_ID[4] = { 'B', 'L', 'C', 'K' };
 #define IDS_MATCH( A, B ) ( A[0] == B[0] && A[1] == B[1] && A[2] == B[2] && A[3] == B[3])
 #define SET_ID( A, B ) {A[0] = B[0]; A[1] = B[1]; A[2] = B[2]; A[3] = B[3];}
 
-static const uint32_t OBJECT_TABLE_ID = 0;
-static const uint32_t TRASH_TABLE_ID = 1;
-static const uint32_t DEFUALT_BLOCKSIZE = 128;
-static const uint32_t VERSION = 1;
-static const uint32_t INITIAL_NUMBER_OF_OBJECTS = 2;
-static const uint32_t NO_BLOCK = 0xFFFFFFFF;
+
 
 typedef struct
 {
@@ -92,14 +108,13 @@ typedef struct
 
 
 
-typedef struct
+typedef struct _TOStore
 {
     FILE*                   fp;
     TOStreamMode            fileMode;
     TObjectStoreFileHeader  fileHeader;
-    TObjIndex     tableOfObjectsHeader;
-    TObjIndex     tashHeader;
-
+    TObjIndex               tableOfObjectsHeader;
+    TObjIndex               tashHeader;
     // working memory
     uint32_t                numberOfObjects;    
 } TOStore;
@@ -107,20 +122,6 @@ typedef struct
 
 
 
-// local handy macros
-#define INIT(TYPE, VAR) memset(&VAR, 0, sizeof(TYPE))
-#define INIT_HEAP(TYPE, VAR) memset(VAR, 0, sizeof(TYPE))
-#define LOCAL_MEMZ(TYPE, VAR) TYPE VAR; memset(&VAR, 0, sizeof(TYPE))
-#define HEAP_MEMZ(TYPE, VAR) TYPE* VAR = malloc(sizeof(TYPE)); VALIDATE(VAR != NULL, ERR_MEM); memset(VAR, 0, sizeof(TYPE))
-
-#define zmalloc( A ) zeromalloc(sizeof(A))
-#define START int retval = 0
-#define VALIDATE( A, B) if ( !(A) ) HANDLE_ERROR(B)
-#define IF_NOT_OK_HANDLE_ERROR( A ) if ( (retval = (A)) != ERR_OK ) HANDLE_ERROR( retval )
-#define IF_NOT_OK_HANDLE_ERROR if ( retval != ERR_OK ) HANDLE_ERROR( retval )
-#define HANDLE_ERROR(A) { retval = A; goto HandleError; };
-#define PROCESS_ERROR return retval; HandleError:
-#define FINISH return retval;
 
 
 // internal function definitions
@@ -128,22 +129,24 @@ void* zeromalloc(size_t size);
 void zfree( void* ptr );
 
 
-int addBlocksToIndex(TOStore* store, TDskObjIndex* head, TDskObjectStoreBlockHeader* newBlocks);
-int setLengthWithIndex(TOStore* store, TDskObjIndex* head, uint32_t lengthRequested);
-int growLengthWithIndex(TOStore* store, TDskObjIndex* head, uint32_t blocksToAdd);
-int shirnkLengthWithIndex(TOStore* store, TDskObjIndex* head, uint32_t blocksToRemove);
+int addBlocksToIndex(TOStoreHnd store, TDskObjIndex* head, TDskObjectStoreBlockHeader* newBlocks);
+int removeBlocksFromIndex(TOStoreHnd store, TDskObjIndex* index, TDskObjectStoreBlockHeader* freeBlocks, uint32_t numberOfBlocksToRemove);
+
+int setLengthWithIndex(TOStoreHnd store, TDskObjIndex* head, uint32_t lengthRequested);
+int growLengthWithIndex(TOStoreHnd store, TDskObjIndex* head, uint32_t blocksToAdd);
+int shirnkLengthWithIndex(TOStoreHnd store, TDskObjIndex* head, uint32_t blocksToRemove);
 
 int readObjectIndex(TOStoreHnd oStore, TOStoreObjID id, TDskObjIndex* header);
 int writeObjectIndex(TOStoreHnd oStore, TOStoreObjID id, TDskObjIndex* header);
-int addObjectIndex(TOStore* store, TDskObjIndex* header);
+int addObjectIndex(TOStoreHnd store, TDskObjIndex* header);
 
-int readWithIndex(TOStore* store, const TDskObjIndex* header, uint32_t position, uint32_t length, void* destination);
-int writeWithIndex(TOStore* store, const TDskObjIndex* header, uint32_t position, uint32_t length, void* source);
+int readWithIndex(TOStoreHnd store, const TDskObjIndex* header, uint32_t position, uint32_t length, void* destination);
+int writeWithIndex(TOStoreHnd store, const TDskObjIndex* header, uint32_t position, uint32_t length, void* source);
 
 
 int addBlockToFile(FILE* fp, const TDskObjectStoreBlockHeader* header, uint32_t size);
-int writeBlockHeader(TOStore* store, const TDskObjectStoreBlockHeader* header);
-int readBlockHeader(TOStore* store, TDskObjectStoreBlockHeader* header, uint32_t index);
+int writeBlockHeader(TOStoreHnd store, const TDskObjectStoreBlockHeader* header);
+int readBlockHeader(TOStoreHnd store, TDskObjectStoreBlockHeader* header, uint32_t index);
 
 
 

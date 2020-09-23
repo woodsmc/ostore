@@ -36,10 +36,9 @@ typedef enum {
     EReadWrite
 } TOStreamMode;
 
-typedef struct TOStore;
-typedef TOStore* TOStoreHnd;
-typedef struct TOStoreObj;
+typedef struct _TOStore* TOStoreHnd;
 typedef uint32_t TOStoreObjID;
+
 
 // Store Handling
 int ostore_open(const char* filename, TOStreamMode mode, TOStoreHnd* oStore);

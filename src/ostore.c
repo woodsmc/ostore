@@ -19,7 +19,7 @@ int ostore_open(const char* filename, TOStreamMode mode, TOStoreHnd* oStore) {
     TOStore* store = zmalloc(TOStore);
     if ( store == NULL )
         HANDLE_ERROR(ERR_MEM);
-    
+
     const char* fileMode = NULL;
     switch(mode) {
         EReadWrite:
@@ -35,14 +35,16 @@ int ostore_open(const char* filename, TOStreamMode mode, TOStoreHnd* oStore) {
     store->fp = fopen(filename, fileMode);
     VALIDATE(store->fp == NULL, ERR_NOT_FOUND);
 
-    retval = readFromFile(store->fp, 0, sizeof(TDskObjectStoreFileHeader), &store->fileHeader.header);
+    uint8_t* bytePtr = (uint8_t*)&store->fileHeader.header;
+    retval = readFromFile(store->fp, 0, sizeof(TDskObjectStoreFileHeader), bytePtr);
     IF_NOT_OK_HANDLE_ERROR(retval);
     VALIDATE( IDS_MATCH(FILE_ID, store->fileHeader.header.identifyingWord), ERR_CORRUPT);
     VALIDATE(store->fileHeader.header.versionNumner = VERSION, ERR_CORRUPT);
 
     TDskObjectStoreBlockHeader firstBlockHeader;
     memset(&firstBlockHeader, 0, sizeof(TDskObjectStoreBlockHeader));
-    retval = readFromFile(store->fp, FILE_LOCATION_FOR_FIRST_BLOCK, sizeof(TDskObjectStoreBlockHeader), &firstBlockHeader);
+    bytePtr = (uint8_t*)&firstBlockHeader;
+    retval = readFromFile(store->fp, FILE_LOCATION_FOR_FIRST_BLOCK, sizeof(TDskObjectStoreBlockHeader), bytePtr);
     IF_NOT_OK_HANDLE_ERROR(retval);
     VALIDATE( IDS_MATCH(BLOCK_ID, firstBlockHeader.identifyingWord), ERR_CORRUPT);
     VALIDATE( firstBlockHeader.id = OBJECT_TABLE_ID, ERR_CORRUPT);
@@ -50,21 +52,24 @@ int ostore_open(const char* filename, TOStreamMode mode, TOStoreHnd* oStore) {
     VALIDATE( firstBlockHeader.sequenceNumber == 0, ERR_CORRUPT);
 
     // boot strapping here
-    retval = readFromFile(store->fp, FILE_LOCATION_FOR_NUMBER_OF_OBJECTS, sizeof(uint32_t), &store->numberOfObjects);
+    bytePtr = (uint8_t*)&store->numberOfObjects;
+    retval = readFromFile(store->fp, FILE_LOCATION_FOR_NUMBER_OF_OBJECTS, sizeof(uint32_t), bytePtr);
     IF_NOT_OK_HANDLE_ERROR(retval);
 
-    retval = readFromFile(store->fp, FILE_LOCATION_FOR_TABLE_OF_OBJECTS_INDEX, sizeof(TDskObjIndex), &store->tableOfObjectsHeader.header);
+    bytePtr = (uint8_t*)&store->tableOfObjectsHeader.header;
+    retval = readFromFile(store->fp, FILE_LOCATION_FOR_TABLE_OF_OBJECTS_INDEX, sizeof(TDskObjIndex), bytePtr);
     IF_NOT_OK_HANDLE_ERROR(retval);
 
-    retval = readFromFile(store->fp, FILE_LOCATION_FOR_TRASH_INDEX, sizeof(TDskObjIndex), &store->tashHeader.header);
+    bytePtr = (uint8_t*)&store->tashHeader.header;
+    retval = readFromFile(store->fp, FILE_LOCATION_FOR_TRASH_INDEX, sizeof(TDskObjIndex), bytePtr);
     IF_NOT_OK_HANDLE_ERROR(retval);
-    
+
 
     (*oStore) = store;
 
     PROCESS_ERROR;
     if ( store && store->fp) {
-        fclose(store->fp);        
+        fclose(store->fp);
     }
     zfree(store);
 
@@ -80,13 +85,13 @@ int ostore_create(const char* filename, TOStoreHnd* oStore) {
     TOStore* store = zmalloc(TOStore);
     if ( store == NULL )
         HANDLE_ERROR(ERR_MEM);
-    
+
     store->fileHeader.header.blocksInFile = 1;
     store->fileHeader.header.blockSize = DEFUALT_BLOCKSIZE;
     SET_ID(store->fileHeader.header.identifyingWord, FILE_ID);
     store->fileHeader.header.versionNumner = VERSION;
     store->numberOfObjects = INITIAL_NUMBER_OF_OBJECTS;
-    
+
     store->tableOfObjectsHeader.header.headBlock = 0;
     store->tableOfObjectsHeader.header.tailBlock = 0;
     store->tableOfObjectsHeader.header.id = OBJECT_TABLE_ID;
@@ -108,65 +113,68 @@ int ostore_create(const char* filename, TOStoreHnd* oStore) {
     firstBlockHeader.sequenceNumber = 0;
 
 
-    store->fp = fopen(filename, "bw+");
-    VALIDATE(store->fp == NULL, ERR_CORRUPT);
-    retval = writeToFile(store->fp, 0, sizeof(TDskObjectStoreFileHeader), &store->fileHeader.header);
+    store->fp = fopen(filename, "w+"); // was bw+
+    VALIDATE(store->fp != NULL, ERR_CORRUPT);
+    uint8_t* dataPtr = (uint8_t*)&store->fileHeader.header;
+    retval = writeToFile(store->fp, 0, sizeof(TDskObjectStoreFileHeader), dataPtr);
     IF_NOT_OK_HANDLE_ERROR(retval);
-    
+
     retval = addBlockToFile(store->fp, &firstBlockHeader, DEFUALT_BLOCKSIZE);
     IF_NOT_OK_HANDLE_ERROR(retval);
-    
-    retval = writeToFile(store->fp, FILE_LOCATION_FOR_NUMBER_OF_OBJECTS, sizeof(uint32_t),  &store->numberOfObjects);
 
-    retval = writeToFile(store->fp, FILE_LOCATION_FOR_TABLE_OF_OBJECTS_INDEX, sizeof(TDskObjIndex), &store->tableOfObjectsHeader.header);
+    dataPtr = (uint8_t*)&store->numberOfObjects;
+    retval = writeToFile(store->fp, FILE_LOCATION_FOR_NUMBER_OF_OBJECTS, sizeof(uint32_t),  dataPtr);
+
+    dataPtr = (uint8_t*)&store->tableOfObjectsHeader.header;
+    retval = writeToFile(store->fp, FILE_LOCATION_FOR_TABLE_OF_OBJECTS_INDEX, sizeof(TDskObjIndex), dataPtr);
     IF_NOT_OK_HANDLE_ERROR(retval);
 
-    retval = writeToFile(store->fp, FILE_LOCATION_FOR_TRASH_INDEX, sizeof(TDskObjIndex), &store->tashHeader.header);
+    dataPtr = (uint8_t*)&store->tashHeader.header;
+    retval = writeToFile(store->fp, FILE_LOCATION_FOR_TRASH_INDEX, sizeof(TDskObjIndex), dataPtr);
     IF_NOT_OK_HANDLE_ERROR(retval);
 
     store->fileMode = EReadWrite;
+    // ensure we return this
+    (*oStore) = store;
 
     PROCESS_ERROR;
     if ( store && store->fp) {
-        fclose(store->fp);        
+        fclose(store->fp);
     }
-    zfree(store);   
+    zfree(store);
+    (*oStore) = NULL;
    FINISH;
 }
 
 void ostore_close(TOStoreHnd* oStore) {
-    assert(oStore != NULL);
-    if (*oStore) {
-        fclose((*oStore)->fp);
-    }
-    zfree( *oStore );
+    assert(oStore);
+    assert(*oStore);
+    TOStore* store = (*oStore);
+    fclose(store->fp);
+    zfree(store);
     *oStore = NULL;
 }
 
 // Object Inspection
-int ostore_enumerateObjects(TOStoreHnd oStore, uint32_t* numberOfObjects) {
-    assert(oStore != NULL);
-    assert(numberOfObjects != NULL);
-    TOStore* store = (*oStore);
+int ostore_enumerateObjects(TOStoreHnd store, uint32_t* numberOfObjects) {
     assert(store != NULL);
+    assert(numberOfObjects != NULL);
     (*numberOfObjects) = store->numberOfObjects;
     return 0;
 }
 
-int ostore_getObjectIdFromIndex(TOStoreHnd oStore, uint32_t objectIndex, TOStoreObjID* id) {
-    assert(oStore != NULL);
-    assert(*oStore != NULL);
-    assert(id != NULL);    
+int ostore_getObjectIdFromIndex(TOStoreHnd store, uint32_t objectIndex, TOStoreObjID* id) {
+    assert(store != NULL);
+    assert(id != NULL);
 
     START;
-    TOStore* store = (*oStore);
     assert(objectIndex < store->numberOfObjects);
     uint32_t offset = sizeof(uint32_t);
-    
+
     retval = ERR_NOT_FOUND;
     for(uint32_t i = 0; i < store->numberOfObjects; i++) {
         LOCAL_MEMZ(TDskObjIndex, header);
-        offset = (i * sizeof(TDskObjIndex)) + sizeof(uint32_t);        
+        offset = (i * sizeof(TDskObjIndex)) + sizeof(uint32_t);
         retval = readWithIndex(store, &store->tableOfObjectsHeader.header, offset, sizeof(TDskObjIndex), &header);
         IF_NOT_OK_HANDLE_ERROR(retval);
         if (i == objectIndex) {
@@ -177,21 +185,19 @@ int ostore_getObjectIdFromIndex(TOStoreHnd oStore, uint32_t objectIndex, TOStore
 
     PROCESS_ERROR;
 
-    FINISH;    
+    FINISH;
 }
 
-int ostore_objectIdExists(TOStoreHnd oStore, TOStoreObjID id) {
-    assert(oStore != NULL);
-    assert(*oStore != NULL);
+int ostore_objectIdExists(TOStoreHnd store, TOStoreObjID id) {
+    assert(store != NULL);
 
     START;
-    TOStore* store = (*oStore);
     uint32_t offset = sizeof(uint32_t);
     bool found = false;
 
     for(uint32_t i = 0; i < store->numberOfObjects; i++) {
         LOCAL_MEMZ(TDskObjIndex, header);
-        offset = (i * sizeof(TDskObjIndex)) + sizeof(uint32_t);        
+        offset = (i * sizeof(TDskObjIndex)) + sizeof(uint32_t);
         retval = readWithIndex(store, &store->tableOfObjectsHeader.header, offset, sizeof(TDskObjIndex), &header);
         IF_NOT_OK_HANDLE_ERROR(retval);
         if (header.id == id) {
@@ -207,24 +213,22 @@ int ostore_objectIdExists(TOStoreHnd oStore, TOStoreObjID id) {
 
     PROCESS_ERROR;
 
-    FINISH;    
+    FINISH;
 }
 
 // Object Management
-int ostrore_addObjectWithId(TOStoreHnd oStore, TOStoreObjID id, uint32_t length) {
-    assert(oStore != NULL);
-    assert(*oStore != NULL);
-    TOStore* store = (*oStore);
+int ostrore_addObjectWithId(TOStoreHnd store, TOStoreObjID id, uint32_t length) {
+    assert(store != NULL);
     // check to make sure an object with the same id doesn't exist
     START;
-    retval = ostore_objectIdExists(oStore, id);
+    retval = ostore_objectIdExists(store, id);
     if ( retval != ERR_NOT_FOUND) {
-        retval = ERR_ALREADY_EXISTS;        
+        retval = ERR_ALREADY_EXISTS;
     } else {
         retval = ERR_OK;
     }
     IF_NOT_OK_HANDLE_ERROR(retval);
-    
+
     // add the object header entry
     LOCAL_MEMZ(TDskObjIndex, index);
     index.id = id;
@@ -232,14 +236,14 @@ int ostrore_addObjectWithId(TOStoreHnd oStore, TOStoreObjID id, uint32_t length)
     index.headBlock = NO_BLOCK;
     index.tailBlock = NO_BLOCK;
 
-    retval = writeObjectIndex(oStore, id, &index);
+    retval = writeObjectIndex(store, id, &index);
     IF_NOT_OK_HANDLE_ERROR(retval);
 
-    // assign space to the 
+    // assign space to the
     uint32_t blocksToAdd = length / store->fileHeader.header.blockSize;
     if (blocksToAdd == 0 ) blocksToAdd = 1;
 
-    retval = growLengthWithIndex(*oStore, &index, blocksToAdd);
+    retval = growLengthWithIndex(store, &index, blocksToAdd);
     IF_NOT_OK_HANDLE_ERROR(retval);
 
     PROCESS_ERROR;
@@ -248,15 +252,13 @@ int ostrore_addObjectWithId(TOStoreHnd oStore, TOStoreObjID id, uint32_t length)
 
 
 
-int ostore_removeObject(TOStoreHnd oStore, TOStoreObjID id) {
-    assert(oStore != NULL);
-    assert(*oStore != NULL);
+int ostore_removeObject(TOStoreHnd store, TOStoreObjID id) {
+    assert(store != NULL);
     // find the object with the matching id to remove
     // then compact the array to remove it
     // then update the counters
 
     START;
-    TOStore* store = (*oStore);     
     bool found = false;
     bool startingWrite = false;
     uint32_t index = 0;
@@ -265,7 +267,7 @@ int ostore_removeObject(TOStoreHnd oStore, TOStoreObjID id) {
     uint32_t originalObjectCount = store->numberOfObjects;
     LOCAL_MEMZ(TDskObjIndex, headerToDelete);
 
-    for(i = 0; i < store->numberOfObjects; i++) {        
+    for(i = 0; i < store->numberOfObjects; i++) {
         uint32_t offset = (i * sizeof(TDskObjIndex)) + sizeof(uint32_t);
         memset(&headerToDelete, 0, sizeof(TDskObjIndex));
         retval = readWithIndex(store, &store->tableOfObjectsHeader.header, offset, sizeof(TDskObjIndex), &headerToDelete);
@@ -285,10 +287,10 @@ int ostore_removeObject(TOStoreHnd oStore, TOStoreObjID id) {
     for(i = index; i < reducedObjectCount; i++) {
         uint32_t offsetOld = (i * sizeof(TDskObjIndex)) + sizeof(uint32_t);
         uint32_t offsetNew = ( (i+1) * sizeof(TDskObjIndex)) + sizeof(uint32_t);
-        LOCAL_MEMZ(TDskObjIndex, header);                
+        LOCAL_MEMZ(TDskObjIndex, header);
         retval = readWithIndex(store, &store->tableOfObjectsHeader.header, offsetNew, sizeof(TDskObjIndex), &header);
         IF_NOT_OK_HANDLE_ERROR(retval);
-        retval = writeWithIndex(store, &store->tableOfObjectsHeader.header, offsetOld, sizeof(TDskObjIndex), &header);        
+        retval = writeWithIndex(store, &store->tableOfObjectsHeader.header, offsetOld, sizeof(TDskObjIndex), &header);
         IF_NOT_OK_HANDLE_ERROR(retval);
     }
 
@@ -304,37 +306,37 @@ int ostore_removeObject(TOStoreHnd oStore, TOStoreObjID id) {
     //  - the entry being deleted (as it is first to be overwritten)
     //    : headerToDelete
     //  - the clobber loop simply produces duplicates of entries on failure
-    //    if we find a 
+    //    if we find a
     // search for
     if (startingWrite) {
-        
+
     }
-    FINISH;     
-    
+    FINISH;
+
 }
 
 // Object Operations
-int ostoreobj_setLength(TOStoreHnd oStore, TOStoreObjID id, uint32_t lengthRequested) {
+int ostoreobj_setLength(TOStoreHnd store, TOStoreObjID id, uint32_t lengthRequested) {
+    assert(store);
     START;
-    TOStore* store = *oStore;
     LOCAL_MEMZ(TDskObjIndex, head);
-    retval = readObjectIndex(oStore, id, &head);
+    retval = readObjectIndex(store, id, &head);
     IF_NOT_OK_HANDLE_ERROR(retval);
     retval = setLengthWithIndex(store, &head, lengthRequested);
     PROCESS_ERROR;
     FINISH;
 }
 
-int ostoreobj_getLength(TOStoreHnd oStore, TOStoreObjID id, uint32_t* length) {
-    assert(oStore);
+int ostoreobj_getLength(TOStoreHnd store, TOStoreObjID id, uint32_t* length) {
+    assert(store);
     assert(id != OBJECT_TABLE_ID || id != TRASH_TABLE_ID);
     assert(length);
     (*length) = 0;
     START;
-    TOStore* store  = oStore;
+
 
     LOCAL_MEMZ(TDskObjIndex, head);
-    retval = readObjectIndex(oStore, id, &head);
+    retval = readObjectIndex(store, id, &head);
     IF_NOT_OK_HANDLE_ERROR(retval);
     (*length) = head.numberOfBlocks * store->fileHeader.header.blockSize;
 
@@ -345,43 +347,40 @@ int ostoreobj_getLength(TOStoreHnd oStore, TOStoreObjID id, uint32_t* length) {
 }
 
 // Reading and Writing Data
-int ostoreobj_read(TOStoreHnd oStore, TOStoreObjID id, uint32_t position, uint32_t length, void* destination) {
-    assert(oStore);
+int ostoreobj_read(TOStoreHnd store, TOStoreObjID id, uint32_t position, uint32_t length, void* destination) {
+    assert(store);
     assert(id != OBJECT_TABLE_ID || id != TRASH_TABLE_ID);
     assert(destination);
 
     START;
-    TOStore* store = (*oStore);
-    assert(store);
     LOCAL_MEMZ(TDskObjIndex, head);
-    retval = readObjectIndex(oStore, id, &head);
+    retval = readObjectIndex(store, id, &head);
     IF_NOT_OK_HANDLE_ERROR(retval);
 
     /// read data now with header.
-    retval = readWithIndex(*oStore, &head, position, length, destination);
+    retval = readWithIndex(store, &head, position, length, destination);
 
     PROCESS_ERROR;
     FINISH;
 }
 
-int ostoreobj_write(TOStoreHnd oStore, TOStoreObjID id, uint32_t position, const void* source, uint32_t length) {
-    assert(oStore);
+int ostoreobj_write(TOStoreHnd store, TOStoreObjID id, uint32_t position, const void* source, uint32_t length) {
+    assert(store);
     assert(id != OBJECT_TABLE_ID || id != TRASH_TABLE_ID);
     assert(source);
 
     START;
-    TOStore* store = (*oStore);
-    assert(store);
     LOCAL_MEMZ(TDskObjIndex, head);
-    retval = readObjectIndex(oStore, id, &head);
+    retval = readObjectIndex(store, id, &head);
     IF_NOT_OK_HANDLE_ERROR(retval);
 
     // if there are more blocks needed, than are available, assert, this should be checked before invoking.
     uint32_t totalLength = position + length;
     uint32_t availableSpace = store->fileHeader.header.blockSize * head.numberOfBlocks;
     assert(totalLength <= availableSpace);
-    retval = writeWithIndex(store, &head, position, length, source);
+    uint8_t* dataPtr = (uint8_t*)source;
+    retval = writeWithIndex(store, &head, position, length, dataPtr);
 
     PROCESS_ERROR;
-    FINISH;    
+    FINISH;
 }
