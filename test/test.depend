@@ -1,0 +1,31 @@
+# depslib dependency file v1.0
+1600828565 source:/home/chris/development/ostore/src/ostore.c
+	"ostore.h"
+	<stdbool.h>
+	<stdio.h>
+	<string.h>
+	<stdint.h>
+	<fcntl.h>
+	<assert.h>
+	"ostore_internal.h"
+
+1600826733 /home/chris/development/ostore/inc/ostore.h
+	<stdint.h>
+
+1600826520 /home/chris/development/ostore/inc/ostore_internal.h
+	<stdbool.h>
+	<stdio.h>
+	<string.h>
+	<stdint.h>
+	<fcntl.h>
+	<assert.h>
+	<stdlib.h>
+	"ostore.h"
+
+1600828069 source:/home/chris/development/ostore/src/ostore_internal.c
+	"ostore_internal.h"
+
+1600828397 source:/home/chris/development/ostore/test/makeempty.c
+	<stdio.h>
+	"ostore.h"
+
