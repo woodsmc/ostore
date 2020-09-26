@@ -50,3 +50,19 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+
+# Created by https://www.toptal.com/developers/gitignore/api/codeblocks
+# Edit at https://www.toptal.com/developers/gitignore?templates=codeblocks
+
+### CodeBlocks ###
+# specific to CodeBlocks IDE
+*.layout
+*.depend
+# generated directories
+bin/
+obj/
+
+# End of https://www.toptal.com/developers/gitignore/api/codeblocks
+
+
