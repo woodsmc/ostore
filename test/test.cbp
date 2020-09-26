@@ -30,8 +30,17 @@
 		</Build>
 		<Compiler>
 			<Add option="-Wall" />
+			<Add directory="../inc" />
 		</Compiler>
-		<Unit filename="main.c">
+		<Unit filename="../inc/ostore.h" />
+		<Unit filename="../inc/ostore_internal.h" />
+		<Unit filename="../src/ostore.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../src/ostore_internal.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="makeempty.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Extensions />
