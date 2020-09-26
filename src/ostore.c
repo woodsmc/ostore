@@ -98,10 +98,9 @@ int ostore_create(const char* filename, TOStoreHnd* oStore) {
     store->tableOfObjectsHeader.header.numberOfBlocks = 1;
 
     store->tashHeader.header.headBlock = NO_BLOCK;
+    store->tashHeader.header.tailBlock = NO_BLOCK;
     store->tashHeader.header.id = TRASH_TABLE_ID;
     store->tashHeader.header.numberOfBlocks = 0;
-    store->tashHeader.header.tailBlock = NO_BLOCK;
-
 
     TDskObjectStoreBlockHeader firstBlockHeader;
     memset(&firstBlockHeader, 0, sizeof(TDskObjectStoreBlockHeader));
@@ -114,7 +113,7 @@ int ostore_create(const char* filename, TOStoreHnd* oStore) {
 
 
     store->fp = fopen(filename, "w+"); // was bw+
-    VALIDATE(store->fp != NULL, ERR_CORRUPT);
+    VALIDATE(store->fp == NULL, ERR_CORRUPT);
     uint8_t* dataPtr = (uint8_t*)&store->fileHeader.header;
     retval = writeToFile(store->fp, 0, sizeof(TDskObjectStoreFileHeader), dataPtr);
     IF_NOT_OK_HANDLE_ERROR(retval);
@@ -124,6 +123,7 @@ int ostore_create(const char* filename, TOStoreHnd* oStore) {
 
     dataPtr = (uint8_t*)&store->numberOfObjects;
     retval = writeToFile(store->fp, FILE_LOCATION_FOR_NUMBER_OF_OBJECTS, sizeof(uint32_t),  dataPtr);
+    IF_NOT_OK_HANDLE_ERROR(retval);
 
     dataPtr = (uint8_t*)&store->tableOfObjectsHeader.header;
     retval = writeToFile(store->fp, FILE_LOCATION_FOR_TABLE_OF_OBJECTS_INDEX, sizeof(TDskObjIndex), dataPtr);
@@ -338,6 +338,7 @@ int ostoreobj_getLength(TOStoreHnd store, TOStoreObjID id, uint32_t* length) {
     LOCAL_MEMZ(TDskObjIndex, head);
     retval = readObjectIndex(store, id, &head);
     IF_NOT_OK_HANDLE_ERROR(retval);
+
     (*length) = head.numberOfBlocks * store->fileHeader.header.blockSize;
 
     PROCESS_ERROR;

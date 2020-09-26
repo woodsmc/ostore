@@ -18,7 +18,7 @@
 #define HEAP_MEMZ(TYPE, VAR) TYPE* VAR = malloc(sizeof(TYPE)); VALIDATE(VAR != NULL, ERR_MEM); memset(VAR, 0, sizeof(TYPE))
 #define zmalloc( A ) zeromalloc(sizeof(A))
 #define START int retval = 0
-#define VALIDATE( A, B) if ( !(A) ) HANDLE_ERROR(B)
+#define VALIDATE( A, B) if ( (A) ) HANDLE_ERROR(B)
 #define IF_NOT_OK_HANDLE_ERROR( A ) if ( (retval = (A)) != ERR_OK ) HANDLE_ERROR( retval )
 //#define IF_NOT_OK_HANDLE_ERROR if ( retval != ERR_OK ) HANDLE_ERROR( retval )
 #define HANDLE_ERROR(A) { retval = A; goto HandleError; };
@@ -42,11 +42,11 @@
 
 #define FILE_LOCATION_FOR_TRASH_INDEX (\
      FILE_LOCATION_FOR_TABLE_OF_OBJECTS_INDEX \
-     + sizeof(uint32_t) )
+     + sizeof(TDskObjIndex) )
 
 #define OFFSET_FOR_BLOCK(INDEX, SIZE) (sizeof(TDskObjectStoreFileHeader) + (INDEX * (sizeof(TDskObjectStoreBlockHeader) + SIZE)))
 
-#define CONVERT_TO_FILE_OFFSET( INDEX, SIZE, OFFSET) (OFFSET_FOR_BLOCK(INDEX, SIZE) + OFFSET)
+#define CONVERT_TO_FILE_OFFSET( INDEX, SIZE, OFFSET) (OFFSET_FOR_BLOCK(INDEX, SIZE) + sizeof(TDskObjectStoreBlockHeader) + OFFSET)
 
 #define PHYSICAL_BLOCKSIZE(STORE) (STORE->fileHeader.header.blockSize + sizeof(TDskObjectStoreBlockHeader) )
 

@@ -1,6 +1,6 @@
 #include "ostore_internal.h"
 
-
+static const int8_t BLOCK_FILL[4] = { 'E', 'M', 'P', 'Y'};
 
 int setLengthWithIndex(TOStoreHnd store, TDskObjIndex* head, uint32_t lengthRequested) {
     START;
@@ -379,17 +379,22 @@ int readWithIndex(TOStoreHnd store, const TDskObjIndex* header, uint32_t positio
 
    VALIDATE( endOfRead > objectSizeInBytes, ERR_OVERFLOW );
    LOCAL_MEMZ(TDskObjectStoreBlockHeader, currentBlockHdr);
-
-   // this iterates forward, but could be smart and work backward if that is less steps (TODO)
+   
+   // read in the initial first block sequenceBlock == 0
    uint32_t index = header->headBlock;
-   while(sequenceBlock > 0 && index != NO_BLOCK) {
+   retval = readBlockHeader(store, &currentBlockHdr, index);
+   IF_NOT_OK_HANDLE_ERROR(retval);
+
+   // this iterates forward to the required block in the chain   
+   index = currentBlockHdr.next;
+   while(sequenceBlock > 0 && index != NO_BLOCK) {        
         INIT(TDskObjectStoreBlockHeader, currentBlockHdr);
         retval = readBlockHeader(store, &currentBlockHdr, index);
         IF_NOT_OK_HANDLE_ERROR(retval);
         sequenceBlock--;
-        if ( sequenceBlock > 0 ) {
-            index = currentBlockHdr.next;
+        if ( sequenceBlock > 0 ) {            
             VALIDATE(index != NO_BLOCK, ERR_CORRUPT);
+            index = currentBlockHdr.next;
         }
    }
 
@@ -409,7 +414,8 @@ int readWithIndex(TOStoreHnd store, const TDskObjIndex* header, uint32_t positio
             dataToReadFromThisBlock = dataAvailableInThisBlock;
 
         // convert to actual file position
-        uint32_t positionInFile = CONVERT_TO_FILE_OFFSET(currentBlockHdr.blockFileIndex, store->fileHeader.header.versionNumner, offsetInBlock);
+        uint32_t positionInFile = CONVERT_TO_FILE_OFFSET(currentBlockHdr.blockFileIndex, store->fileHeader.header.blockSize, offsetInBlock);
+        //printf("reading from position %d; block %d\n", positionInFile);
         // read the data into the destination at the correct location
         retval = readFromFile(store->fp, positionInFile, dataToReadFromThisBlock, &dest[consumedData]);
         IF_NOT_OK_HANDLE_ERROR(retval);
@@ -441,7 +447,7 @@ int readBlockHeader(TOStoreHnd store, TDskObjectStoreBlockHeader* header, uint32
     uint8_t* byteHeader = (uint8_t*)header;
     retval = readFromFile(store->fp, offset, sizeof(TDskObjectStoreBlockHeader), byteHeader);
     IF_NOT_OK_HANDLE_ERROR(retval);
-    VALIDATE(header->blockFileIndex == index, ERR_CORRUPT);
+    VALIDATE(header->blockFileIndex != index, ERR_CORRUPT);
 
     PROCESS_ERROR;
     FINISH;
@@ -464,6 +470,8 @@ int readFromFile(FILE* fp, uint32_t offset, uint32_t length, uint8_t* buffer) {
         retval = fread(buffer, length, 1, fp);
         if ( retval != 1 ) {
             retval = ERR_OVERFLOW;
+        } else {
+            retval = ERR_OK;
         }
     } else {
         retval = ERR_OVERFLOW;
@@ -477,14 +485,15 @@ int writeToFile(FILE* fp, uint32_t offset, uint32_t length, const uint8_t* buffe
     assert(buffer);
     int retval = fseek(fp, offset, SEEK_SET);
     if (retval == 0) {
-
         retval = fwrite(buffer, length, 1, fp);
         if ( retval != 1 ) {
             retval = ERR_OVERFLOW;
         } else {
             retval = fflush(fp); // check error response
+            if ( retval != 0 ) {
+                retval = ERR_OVERFLOW;
+            }
         }
-
     } else {
         retval = ERR_OVERFLOW;
     }
@@ -493,21 +502,31 @@ int writeToFile(FILE* fp, uint32_t offset, uint32_t length, const uint8_t* buffe
 }
 
 int addBlockToFile(FILE* fp, const TDskObjectStoreBlockHeader* header, uint32_t size) {
-    int retval = fseek(fp, 0, SEEK_END);
+    int retval = fflush(fp);
+    
+    retval = fseek(fp, 0, SEEK_END); // move to the end of the file.
     if (retval == 0 ) {
         retval = fwrite(header, sizeof(TDskObjectStoreBlockHeader),1, fp);
+                
         if ( retval != 1) {
             retval = ERR_OVERFLOW;
         } else {
-            uint8_t val = 0;
-            retval = fwrite(&val, sizeof(uint8_t), size, fp);
-            if ( retval != size ) {
+            // if written the header ok, then pad with empty space.            
+            size_t numberToWrite = size / sizeof(BLOCK_FILL);            
+            retval = 1;            
+            while (retval == 1 && numberToWrite > 0){
+                retval = fwrite(&BLOCK_FILL[0], sizeof(BLOCK_FILL), 1, fp);
+                numberToWrite--;
+            }
+            //printf("retval = %d, numberToWrite = %d\n", retval, numberToWrite);
+            if ( retval != 1) {
                 retval = ERR_OVERFLOW;
             } else {
-                retval = fflush(fp);
-            }
+                retval = fflush(fp); //assert(false);
+            }            
         }
     }
+    return retval;
 }
 
 
