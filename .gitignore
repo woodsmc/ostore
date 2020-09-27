@@ -65,4 +65,8 @@ obj/
 
 # End of https://www.toptal.com/developers/gitignore/api/codeblocks
 
+## oStore test specific
+test/store.test
+test/test_makeempty
+test/test_readstore
 
