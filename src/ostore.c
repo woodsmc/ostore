@@ -22,13 +22,13 @@ int ostore_open(const char* filename, TOStreamMode mode, TOStoreHnd* oStore) {
 
     const char* fileMode = NULL;
     switch(mode) {
-        EReadWrite:
-        fileMode = "br+";
+        case EReadWrite:
+        fileMode = "r+"; // drop the 'b' binary
         break;
 
-        EReadOnly:
-        fileMode = "br";
-        break;
+        case EReadOnly:
+        fileMode = "r";
+        break;        
     }
     store->fileMode = mode;
 
@@ -38,18 +38,18 @@ int ostore_open(const char* filename, TOStreamMode mode, TOStoreHnd* oStore) {
     uint8_t* bytePtr = (uint8_t*)&store->fileHeader.header;
     retval = readFromFile(store->fp, 0, sizeof(TDskObjectStoreFileHeader), bytePtr);
     IF_NOT_OK_HANDLE_ERROR(retval);
-    VALIDATE( IDS_MATCH(FILE_ID, store->fileHeader.header.identifyingWord), ERR_CORRUPT);
-    VALIDATE(store->fileHeader.header.versionNumner = VERSION, ERR_CORRUPT);
+    VALIDATE( !IDS_MATCH(FILE_ID, store->fileHeader.header.identifyingWord), ERR_CORRUPT);
+    VALIDATE(store->fileHeader.header.versionNumner != VERSION, ERR_CORRUPT);
 
     TDskObjectStoreBlockHeader firstBlockHeader;
     memset(&firstBlockHeader, 0, sizeof(TDskObjectStoreBlockHeader));
     bytePtr = (uint8_t*)&firstBlockHeader;
     retval = readFromFile(store->fp, FILE_LOCATION_FOR_FIRST_BLOCK, sizeof(TDskObjectStoreBlockHeader), bytePtr);
     IF_NOT_OK_HANDLE_ERROR(retval);
-    VALIDATE( IDS_MATCH(BLOCK_ID, firstBlockHeader.identifyingWord), ERR_CORRUPT);
-    VALIDATE( firstBlockHeader.id = OBJECT_TABLE_ID, ERR_CORRUPT);
-    VALIDATE( firstBlockHeader.last == 0, ERR_CORRUPT);
-    VALIDATE( firstBlockHeader.sequenceNumber == 0, ERR_CORRUPT);
+    VALIDATE( !IDS_MATCH(BLOCK_ID, firstBlockHeader.identifyingWord), ERR_CORRUPT);
+    VALIDATE( firstBlockHeader.id != OBJECT_TABLE_ID, ERR_CORRUPT);
+    VALIDATE( firstBlockHeader.last != NO_BLOCK, ERR_CORRUPT);
+    VALIDATE( firstBlockHeader.sequenceNumber != 0, ERR_CORRUPT);
 
     // boot strapping here
     bytePtr = (uint8_t*)&store->numberOfObjects;
@@ -68,6 +68,7 @@ int ostore_open(const char* filename, TOStreamMode mode, TOStoreHnd* oStore) {
     (*oStore) = store;
 
     PROCESS_ERROR;
+    printf("error (%d) ocurred opening %s with mode %d\n", retval, filename, mode);
     if ( store && store->fp) {
         fclose(store->fp);
     }
