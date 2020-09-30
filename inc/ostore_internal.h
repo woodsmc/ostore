@@ -147,8 +147,8 @@ int writeWithIndex(TOStoreHnd store, const TDskObjIndex* header, uint32_t positi
 int addBlockToFile(FILE* fp, const TDskObjectStoreBlockHeader* header, uint32_t size);
 int writeBlockHeader(TOStoreHnd store, const TDskObjectStoreBlockHeader* header);
 int readBlockHeader(TOStoreHnd store, TDskObjectStoreBlockHeader* header, uint32_t index);
-
-
+int updateFileHeader(TOStoreHnd store);
+int writeObjectCount(TOStoreHnd store);
 
 
 int readFromFile(FILE* fp, uint32_t offset, uint32_t length, uint8_t* buffer);

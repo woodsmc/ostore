@@ -115,14 +115,17 @@ int ostore_create(const char* filename, TOStoreHnd* oStore) {
 
     store->fp = fopen(filename, "w+"); // was bw+
     VALIDATE(store->fp == NULL, ERR_CORRUPT);
-    uint8_t* dataPtr = (uint8_t*)&store->fileHeader.header;
-    retval = writeToFile(store->fp, 0, sizeof(TDskObjectStoreFileHeader), dataPtr);
+
+    //uint8_t* dataPtr = (uint8_t*)&store->fileHeader.header;
+    //retval = writeToFile(store->fp, 0, sizeof(TDskObjectStoreFileHeader), dataPtr);
+    
+    retval = updateFileHeader(store);
     IF_NOT_OK_HANDLE_ERROR(retval);
 
     retval = addBlockToFile(store->fp, &firstBlockHeader, DEFUALT_BLOCKSIZE);
     IF_NOT_OK_HANDLE_ERROR(retval);
 
-    dataPtr = (uint8_t*)&store->numberOfObjects;
+    uint8_t* dataPtr = (uint8_t*)&store->numberOfObjects;
     retval = writeToFile(store->fp, FILE_LOCATION_FOR_NUMBER_OF_OBJECTS, sizeof(uint32_t),  dataPtr);
     IF_NOT_OK_HANDLE_ERROR(retval);
 
@@ -237,16 +240,18 @@ int ostrore_addObjectWithId(TOStoreHnd store, TOStoreObjID id, uint32_t length) 
     index.headBlock = NO_BLOCK;
     index.tailBlock = NO_BLOCK;
 
+    // this will auto increments the object count too.
     retval = writeObjectIndex(store, id, &index);
     IF_NOT_OK_HANDLE_ERROR(retval);
 
+    
     // assign space to the
     uint32_t blocksToAdd = length / store->fileHeader.header.blockSize;
     if (blocksToAdd == 0 ) blocksToAdd = 1;
 
     retval = growLengthWithIndex(store, &index, blocksToAdd);
     IF_NOT_OK_HANDLE_ERROR(retval);
-
+    
     PROCESS_ERROR;
     FINISH;
 }
@@ -265,7 +270,7 @@ int ostore_removeObject(TOStoreHnd store, TOStoreObjID id) {
     uint32_t index = 0;
     uint32_t i = -1;
     uint32_t reducedObjectCount = store->numberOfObjects - 1;
-    uint32_t originalObjectCount = store->numberOfObjects;
+    // uint32_t originalObjectCount = store->numberOfObjects; // think about restoring blocks on error here
     LOCAL_MEMZ(TDskObjIndex, headerToDelete);
 
     for(i = 0; i < store->numberOfObjects; i++) {
@@ -298,6 +303,8 @@ int ostore_removeObject(TOStoreHnd store, TOStoreObjID id) {
     // update the counters
     store->numberOfObjects--;
     // save to disk
+    retval = writeObjectCount(store);
+    IF_NOT_OK_HANDLE_ERROR(retval);
 
     PROCESS_ERROR;
     // ugh... ok, in this situation we need to restore the missing data

@@ -28,17 +28,22 @@ int growLengthWithIndex(TOStoreHnd store, TDskObjIndex* head, uint32_t blocksToA
     uint32_t blocksAvailableFromTrash = store->tashHeader.header.numberOfBlocks;
     uint32_t blocksToTakeFromTrash = blocksAvailableFromTrash;
     uint32_t blocksToAddToFile= 0;
-    uint32_t sequenceNumber = 0;
-    uint32_t lastBlockNumber = 0;
 
     if (blocksToAdd > blocksAvailableFromTrash) {
+        // if we need more blocks, than the number available from the trash list
+        // then take all available from trash, and work out the number to add
+        // as new.
         blocksToTakeFromTrash = blocksAvailableFromTrash;
         blocksToAddToFile = blocksToAdd - blocksAvailableFromTrash;
     } else /* if ( blocksToAdd <= blocksAvailableFromTrash) */{
+        // if we need less blocks than the total available from trash
+        // then take the entire requested amount from trash, we don't
+        // need to add any new blocks.
         blocksToTakeFromTrash = blocksToAdd;
         blocksToAddToFile = 0;
     }
 
+    // First: Add the blocks we've available in trash
     LOCAL_MEMZ(TDskObjectStoreBlockHeader,blockhead);
     // consume anything in the trash.
     if ( blocksToTakeFromTrash > 0) {
@@ -49,40 +54,55 @@ int growLengthWithIndex(TOStoreHnd store, TDskObjIndex* head, uint32_t blocksToA
     }
 
 
+    // Second: Add the required number of new blocks to the file.
+    // then once added to the file, add them to the index.
+    if (blocksToAddToFile > 0) {
+        LOCAL_MEMZ(TDskObjectStoreBlockHeader, brandNewBlocks);
+        bool startOfNewBlocksSaved = false;
+        // add a linked list of empty blocks to the end of the file
+        memset(&blockhead, 0, sizeof(TDskObjectStoreBlockHeader));
+        SET_ID(blockhead.identifyingWord, BLOCK_ID);
+        blockhead.sequenceNumber = 0;
+        while ( blocksToAddToFile > 0) {
+            // the new block has an index, update the file counter (in RAM)
+            // and set the new block index.
+            blockhead.blockFileIndex = store->fileHeader.header.blocksInFile++;
+            // set the block's last pointer, to the last added block header
+            // except if this is the first block we are adding.
+            if(blockhead.sequenceNumber == 0) {
+                blockhead.last = NO_BLOCK;
+            } else {
+                blockhead.last = blockhead.blockFileIndex - 1;
+            }
 
-    LOCAL_MEMZ(TDskObjectStoreBlockHeader, brandNewBlocks);
-    bool startOfNewBlocksSaved = false;
-    // add a linked list of empty blocks to the end of the file
-    memset(&blockhead, 0, sizeof(TDskObjectStoreBlockHeader));
-    while ( blocksToAddToFile > 0) {
-        blockhead.blockFileIndex = store->fileHeader.header.blocksInFile++;
-        if(blockhead.sequenceNumber == 0) {
-            blockhead.last = NO_BLOCK;
-        } else {
-            blockhead.last = lastBlockNumber;
+            // if we've still got at least one more block to add then we know
+            // that the next block number will be
+            if ( blocksToAddToFile > 1 ) {
+                blockhead.next = blockhead.blockFileIndex + 1;
+            } else {
+                blockhead.next = NO_BLOCK;
+            }
+            if (!startOfNewBlocksSaved) {
+                memcpy(&brandNewBlocks, &blockhead, sizeof(TDskObjectStoreBlockHeader));
+            }
+            startOfNewBlocksSaved = true;
+            retval = addBlockToFile(store->fp, &blockhead, store->fileHeader.header.blockSize);
+            IF_NOT_OK_HANDLE_ERROR(retval);
+            blockhead.sequenceNumber++;
+            blocksToAddToFile--;
         }
 
-        if ( blocksToAddToFile > 1 ) {
-            blockhead.next = blockhead.sequenceNumber + 1;
-        } else {
-            blockhead.next = NO_BLOCK;
-        }
-        if (!startOfNewBlocksSaved) {
-            memcpy(&brandNewBlocks, &blockhead, sizeof(TDskObjectStoreBlockHeader));
-        }
-        startOfNewBlocksSaved = true;
-        retval = addBlockToFile(store->fp, &blockhead, store->fileHeader.header.blockSize);
+        // update the file header to show new total block count
+        retval = updateFileHeader(store);
         IF_NOT_OK_HANDLE_ERROR(retval);
-        blockhead.sequenceNumber++;
-        lastBlockNumber = blockhead.blockFileIndex;
-        blocksToAddToFile--;
-    }
 
-    // then add them to the index we are dealing with
-    if ( startOfNewBlocksSaved) {
+        // then add them to the index we are dealing with
         retval = addBlocksToIndex(store, head, &brandNewBlocks);
         IF_NOT_OK_HANDLE_ERROR(retval);
+
+
     }
+
 
     PROCESS_ERROR;
 
@@ -167,47 +187,63 @@ int addBlocksToIndex(TOStoreHnd store, TDskObjIndex* index, TDskObjectStoreBlock
     START;
 
     LOCAL_MEMZ(TDskObjectStoreBlockHeader, currentBlock);
-    uint32_t tailBlock = 0;
+    LOCAL_MEMZ(TDskObjectStoreBlockHeader, previousBlock);
+
     uint32_t sequenceNumber = 0;
     uint32_t numberOfNewBlocks = 0;
+    uint32_t previousIndex = index->tailBlock;
+    uint32_t currentIndex = newBlocks->blockFileIndex;
 
-    // update head and write it.
-    if ( index->headBlock == NO_BLOCK) {
-        index->headBlock;
-        // there is no need to update the last block
-        newBlocks->last = NO_BLOCK;
-    } else {
-        // update the last block
-        retval = readBlockHeader(store, &currentBlock, index->tailBlock);
-        IF_NOT_OK_HANDLE_ERROR(retval);
-        sequenceNumber = currentBlock.sequenceNumber;
-        currentBlock.next = newBlocks->blockFileIndex;
-        retval = writeBlockHeader(store, &currentBlock);
-        IF_NOT_OK_HANDLE_ERROR(retval);
+
+    // if the index contains no blocks, then headBlock == NO_BLOCK
+    // reset the headBlock to point to the newBlocks to add
+    if (index->headBlock == NO_BLOCK) { // block is empty
+        index->headBlock = newBlocks->blockFileIndex;
     }
 
-    // loop through new blocks, update sequence, get the tailBlock
-    //
-    memcpy(&currentBlock, newBlocks, sizeof(TDskObjectStoreBlockHeader));
-    currentBlock.sequenceNumber = sequenceNumber++;
-    tailBlock = currentBlock.blockFileIndex;
-    retval = writeBlockHeader(store, &currentBlock);
-    IF_NOT_OK_HANDLE_ERROR(retval);
-    numberOfNewBlocks = 1;
+    while(currentIndex != NO_BLOCK) {
 
-    while(currentBlock.next != NO_BLOCK) {
-        retval = readBlockHeader(store, &currentBlock, currentBlock.next);
+        if ( previousIndex != NO_BLOCK ) {
+            retval = readBlockHeader(store, &previousBlock, previousIndex);
+            IF_NOT_OK_HANDLE_ERROR(retval);
+            sequenceNumber = previousBlock.sequenceNumber + 1;
+        }
+
+        retval = readBlockHeader(store, &currentBlock, currentIndex);
         IF_NOT_OK_HANDLE_ERROR(retval);
-        tailBlock = currentBlock.blockFileIndex;
-        currentBlock.sequenceNumber = sequenceNumber++;
+
+        if ( previousIndex != NO_BLOCK) {
+            previousBlock.next = currentIndex;
+            previousBlock.id = index->id;
+        }
+
+        currentBlock.last = previousIndex;
+        currentBlock.sequenceNumber = sequenceNumber;
         currentBlock.id = index->id;
-        numberOfNewBlocks++;
+
+        // save our states
+        if ( previousIndex != NO_BLOCK) {
+            retval = writeBlockHeader(store, &previousBlock);
+            IF_NOT_OK_HANDLE_ERROR(retval);
+        }
+
         retval = writeBlockHeader(store, &currentBlock);
         IF_NOT_OK_HANDLE_ERROR(retval);
-    };
 
-    index->tailBlock = tailBlock;
-    index->numberOfBlocks = numberOfNewBlocks;
+        // previous iteration
+        previousIndex = currentIndex;
+
+        // iterate currentIndex
+        currentIndex = currentBlock.next;
+        numberOfNewBlocks++;
+    }
+
+    // update the index with the number of last block address
+    // and update the total number of blocks
+    index->tailBlock = previousIndex;
+    index->numberOfBlocks += numberOfNewBlocks;
+
+    // write the index
     retval = writeObjectIndex(store, index->id, index);
     IF_NOT_OK_HANDLE_ERROR(retval);
 
@@ -249,7 +285,7 @@ int writeWithIndex(TOStoreHnd store, const TDskObjIndex* header, uint32_t positi
     uint32_t bytesToWrite = (lengthRemaining < lengthAvailableInThisBlock) ? lengthRemaining : lengthAvailableInThisBlock;
     uint32_t sourceOffset = 0;
     while(lengthRemaining > 0) {
-        uint32_t positionInFile = CONVERT_TO_FILE_OFFSET(currentBlockHdr.blockFileIndex, store->fileHeader.header.versionNumner, offset);
+        uint32_t positionInFile = CONVERT_TO_FILE_OFFSET(currentBlockHdr.blockFileIndex, store->fileHeader.header.blockSize, offset);
         retval = writeToFile(store->fp, positionInFile, bytesToWrite, &sourceArray[sourceOffset]);
         IF_NOT_OK_HANDLE_ERROR(retval);
         offset = 0;
@@ -301,13 +337,22 @@ int addObjectIndex(TOStoreHnd store, TDskObjIndex* header) {
     FINISH;
 }
 
+int writeObjectCount(TOStoreHnd store) {
+    assert(store);
+    START;
+    retval = writeWithIndex(store, &store->tableOfObjectsHeader.header, 0, sizeof(uint32_t), &store->numberOfObjects);
+    IF_NOT_OK_HANDLE_ERROR(retval);
+
+    PROCESS_ERROR;
+    FINISH;
+}
+
 int writeObjectIndex(TOStoreHnd oStore, TOStoreObjID id, TDskObjIndex* header) {
     assert(oStore);
     assert(header);
     START;
 
     // try to find the object header, and get the offset location for the write
-
     LOCAL_MEMZ(TDskObjIndex, tempObjHeader);
     bool found = false;
     uint32_t offset = sizeof(uint32_t);
@@ -316,11 +361,14 @@ int writeObjectIndex(TOStoreHnd oStore, TOStoreObjID id, TDskObjIndex* header) {
         memset(&tempObjHeader, 0, sizeof(TDskObjIndex));
         retval = readWithIndex(oStore, &oStore->tableOfObjectsHeader.header, offset, sizeof(TDskObjIndex), &tempObjHeader);
         IF_NOT_OK_HANDLE_ERROR(retval);
-        if ( header->id == id) {
+        if ( tempObjHeader.id == id) {
             found = true;
+            retval = writeWithIndex(oStore, &oStore->tableOfObjectsHeader.header, offset, sizeof(TDskObjIndex), header);
+            IF_NOT_OK_HANDLE_ERROR(retval);
             break;
         }
     }
+
     // if object header can not be found add it
     if(!found) {
         // check to see if there is space for the new header
@@ -335,10 +383,11 @@ int writeObjectIndex(TOStoreHnd oStore, TOStoreObjID id, TDskObjIndex* header) {
         // increment the number of objects and update the file to reflect it
         retval = writeWithIndex(oStore, &oStore->tableOfObjectsHeader.header, 0, sizeof(uint32_t), &numberOfObjects);
         IF_NOT_OK_HANDLE_ERROR(retval);
+        oStore->numberOfObjects = numberOfObjects;
+        offset = (( numberOfObjects - 1) * sizeof(TDskObjIndex) ) + sizeof(uint32_t);
+        retval = writeWithIndex(oStore, &oStore->tableOfObjectsHeader.header, offset, sizeof(TDskObjIndex), header);
+        IF_NOT_OK_HANDLE_ERROR(retval);
     }
-
-    //
-    // overwrite if found
 
     PROCESS_ERROR;
     FINISH;
@@ -379,20 +428,20 @@ int readWithIndex(TOStoreHnd store, const TDskObjIndex* header, uint32_t positio
 
    VALIDATE( endOfRead > objectSizeInBytes, ERR_OVERFLOW );
    LOCAL_MEMZ(TDskObjectStoreBlockHeader, currentBlockHdr);
-   
+
    // read in the initial first block sequenceBlock == 0
    uint32_t index = header->headBlock;
    retval = readBlockHeader(store, &currentBlockHdr, index);
    IF_NOT_OK_HANDLE_ERROR(retval);
 
-   // this iterates forward to the required block in the chain   
+   // this iterates forward to the required block in the chain
    index = currentBlockHdr.next;
-   while(sequenceBlock > 0 && index != NO_BLOCK) {        
+   while(sequenceBlock > 0 && index != NO_BLOCK) {
         INIT(TDskObjectStoreBlockHeader, currentBlockHdr);
         retval = readBlockHeader(store, &currentBlockHdr, index);
         IF_NOT_OK_HANDLE_ERROR(retval);
         sequenceBlock--;
-        if ( sequenceBlock > 0 ) {            
+        if ( sequenceBlock > 0 ) {
             VALIDATE(index != NO_BLOCK, ERR_CORRUPT);
             index = currentBlockHdr.next;
         }
@@ -455,7 +504,6 @@ int readBlockHeader(TOStoreHnd store, TDskObjectStoreBlockHeader* header, uint32
 
 
 int writeBlockHeader(TOStoreHnd store, const TDskObjectStoreBlockHeader* header) {
-    header->blockFileIndex;
     uint32_t offset = OFFSET_FOR_BLOCK(header->blockFileIndex, store->fileHeader.header.blockSize);
     uint8_t* byteHeader = (uint8_t*)header;
     int retval = writeToFile(store->fp, offset, sizeof(TDskObjectStoreBlockHeader), byteHeader);
@@ -478,6 +526,17 @@ int readFromFile(FILE* fp, uint32_t offset, uint32_t length, uint8_t* buffer) {
     }
 
     return retval;
+}
+
+int updateFileHeader(TOStoreHnd store) {
+    START;
+
+    uint8_t* dataPtr = (uint8_t*)&store->fileHeader.header;
+    retval = writeToFile(store->fp, 0, sizeof(TDskObjectStoreFileHeader), dataPtr);
+    IF_NOT_OK_HANDLE_ERROR(retval);
+
+    PROCESS_ERROR;
+    FINISH;
 }
 
 int writeToFile(FILE* fp, uint32_t offset, uint32_t length, const uint8_t* buffer) {
@@ -503,17 +562,17 @@ int writeToFile(FILE* fp, uint32_t offset, uint32_t length, const uint8_t* buffe
 
 int addBlockToFile(FILE* fp, const TDskObjectStoreBlockHeader* header, uint32_t size) {
     int retval = fflush(fp);
-    
+
     retval = fseek(fp, 0, SEEK_END); // move to the end of the file.
     if (retval == 0 ) {
         retval = fwrite(header, sizeof(TDskObjectStoreBlockHeader),1, fp);
-                
+
         if ( retval != 1) {
             retval = ERR_OVERFLOW;
         } else {
-            // if written the header ok, then pad with empty space.            
-            size_t numberToWrite = size / sizeof(BLOCK_FILL);            
-            retval = 1;            
+            // if written the header ok, then pad with empty space.
+            size_t numberToWrite = size / sizeof(BLOCK_FILL);
+            retval = 1;
             while (retval == 1 && numberToWrite > 0){
                 retval = fwrite(&BLOCK_FILL[0], sizeof(BLOCK_FILL), 1, fp);
                 numberToWrite--;
@@ -523,7 +582,7 @@ int addBlockToFile(FILE* fp, const TDskObjectStoreBlockHeader* header, uint32_t 
                 retval = ERR_OVERFLOW;
             } else {
                 retval = fflush(fp); //assert(false);
-            }            
+            }
         }
     }
     return retval;
