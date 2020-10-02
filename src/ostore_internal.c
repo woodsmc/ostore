@@ -295,7 +295,7 @@ int writeWithIndex(TOStoreHnd store, const TDskObjIndex* header, uint32_t positi
         lengthRemaining -= bytesToWrite;
         bytesToWrite = (lengthRemaining < store->fileHeader.header.blockSize) ? lengthRemaining : store->fileHeader.header.blockSize;
         if ( lengthRemaining > 0 ) {
-            VALIDATE(currentBlockHdr.next != NO_BLOCK, ERR_CORRUPT);
+            VALIDATE(currentBlockHdr.next == NO_BLOCK, ERR_CORRUPT);
             retval = readBlockHeader(store, &currentBlockHdr, currentBlockHdr.next);
             IF_NOT_OK_HANDLE_ERROR(retval);
         }

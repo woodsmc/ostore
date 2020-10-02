@@ -30,7 +30,7 @@ int ostore_open(const char* filename, TOStreamMode mode, TOStoreHnd* oStore) {
 
         case EReadOnly:
         fileMode = "r";
-        break;        
+        break;
     }
     store->fileMode = mode;
 
@@ -120,7 +120,7 @@ int ostore_create(const char* filename, TOStoreHnd* oStore) {
 
     //uint8_t* dataPtr = (uint8_t*)&store->fileHeader.header;
     //retval = writeToFile(store->fp, 0, sizeof(TDskObjectStoreFileHeader), dataPtr);
-    
+
     retval = updateFileHeader(store);
     IF_NOT_OK_HANDLE_ERROR(retval);
 
@@ -246,15 +246,14 @@ int ostrore_addObjectWithId(TOStoreHnd store, TOStoreObjID id, uint32_t length) 
     retval = writeObjectIndex(store, id, &index);
     IF_NOT_OK_HANDLE_ERROR(retval);
 
-    
+
     // assign space to the
-    uint32_t blocksToAdd = length / store->fileHeader.header.blockSize;
-    blocksToAdd = REQUIRED_BLOCKS_FOR_BYTES(store, length);
+    uint32_t blocksToAdd = REQUIRED_BLOCKS_FOR_BYTES(store, length);
     if (blocksToAdd == 0 ) blocksToAdd = 1;
-    
+
     retval = growLengthWithIndex(store, &index, blocksToAdd);
     IF_NOT_OK_HANDLE_ERROR(retval);
-    
+
     PROCESS_ERROR;
     FINISH;
 }
