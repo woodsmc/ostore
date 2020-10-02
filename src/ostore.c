@@ -8,6 +8,8 @@
 
 #include "ostore_internal.h"
 
+#define REQUIRED_BLOCKS_FOR_BYTES(store, bytes) ( (bytes) / (store)->fileHeader.header.blockSize ) + ( ( (bytes) % (store)->fileHeader.header.blockSize) ? 1 : 0 )
+
 
 // Store Handling
 int ostore_open(const char* filename, TOStreamMode mode, TOStoreHnd* oStore) {
@@ -247,8 +249,9 @@ int ostrore_addObjectWithId(TOStoreHnd store, TOStoreObjID id, uint32_t length) 
     
     // assign space to the
     uint32_t blocksToAdd = length / store->fileHeader.header.blockSize;
+    blocksToAdd = REQUIRED_BLOCKS_FOR_BYTES(store, length);
     if (blocksToAdd == 0 ) blocksToAdd = 1;
-
+    
     retval = growLengthWithIndex(store, &index, blocksToAdd);
     IF_NOT_OK_HANDLE_ERROR(retval);
     
@@ -386,7 +389,7 @@ int ostoreobj_write(TOStoreHnd store, TOStoreObjID id, uint32_t position, const 
     // if there are more blocks needed, than are available, assert, this should be checked before invoking.
     uint32_t totalLength = position + length;
     uint32_t availableSpace = store->fileHeader.header.blockSize * head.numberOfBlocks;
-    assert(totalLength <= availableSpace);
+    assert(totalLength < availableSpace);
     uint8_t* dataPtr = (uint8_t*)source;
     retval = writeWithIndex(store, &head, position, length, dataPtr);
 

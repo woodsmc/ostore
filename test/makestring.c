@@ -3,6 +3,31 @@
 #include <string.h>
 #include "ostore.h"
 
+static const char* TEST_STRING = "Once, long ago, the Danish land owned the sway of a mighty monarch,"
+"Scyld Scefing, the founder of a great dynasty, the Scyldings. This"
+"great king Scyld had come to Denmark in a mysterious manner, since no"
+"man knew whence he sprang. As a babe he drifted to the Danish shore in"
+"a vessel loaded with treasures; but no man was with him, and there was"
+"no token to show his kindred and race. When Scyld grew up he increased"
+"the power of Denmark and enlarged her borders; his fame spread far and"
+"wide among men, and his glory shone undimmed until the day when, full"
+"of years and honours, he died, leaving the throne securely established"
+"in his family. Then the sorrowing Danes restored him to the mysterious"
+"ocean from which he had come to them. Choosing their goodliest ship,"
+"they laid within it the corpse of their departed king, and heaped"
+"around him all their best and choicest treasures, until the venerable"
+"countenance of Scyld looked to heaven from a bed of gold and jewels;"
+"then they set up, high above his head, his glorious gold-wrought"
+"banner, and left him alone in state. The vessel was loosed from the"
+"shore where the mourning Danes bewailed their departing king, and"
+"drifted slowly away to the unknown west from which Scyld had sailed to"
+"his now sorrowing people; they watched until it was lost in the"
+"shadows of night and distance, but no man under heaven knoweth what"
+"shore now holds the vanished Scyld. The descendants of Scyld ruled and"
+"prospered till the days of his great-grandson Hrothgar, one of a"
+"family of four, who can all be identified historically with various"
+"Danish kings and princes.";
+
 const char* indexType(uint32_t in) {
 	switch(in) {
 		case 0:
@@ -49,7 +74,6 @@ int main(int argc, const char* argv[]) {
 
 	printf("creating, a new object to store a string..\n");
 	const TOStoreObjID STRING_ID = 0x77777777;
-	const char* TEST_STRING = "Hello world this is a test string, let's store this then read it back!";
 	const uint32_t SIZE = strlen(TEST_STRING) + 1;
 	char* string = malloc(SIZE);
 	memset(string, 0, SIZE);

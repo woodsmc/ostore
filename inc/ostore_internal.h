@@ -50,6 +50,9 @@
 
 #define PHYSICAL_BLOCKSIZE(STORE) (STORE->fileHeader.header.blockSize + sizeof(TDskObjectStoreBlockHeader) )
 
+// Calculation for required blocks
+#define REQUIRED_BLOCKS_FOR_BYTES(store, bytes) ( (bytes) / (store)->fileHeader.header.blockSize ) + ( ( (bytes) % (store)->fileHeader.header.blockSize) ? 1 : 0 )
+
 // default internal IDs
 static const uint32_t OBJECT_TABLE_ID = 0;
 static const uint32_t TRASH_TABLE_ID = 1;

@@ -6,6 +6,8 @@ int setLengthWithIndex(TOStoreHnd store, TDskObjIndex* head, uint32_t lengthRequ
     START;
     uint32_t numberOfBlockRequested = lengthRequested / store->fileHeader.header.blockSize;
 
+    numberOfBlockRequested = REQUIRED_BLOCKS_FOR_BYTES(store, lengthRequested);
+
     if (numberOfBlockRequested > head->numberOfBlocks) {
         // add blocks
         uint32_t blocksToAdd = numberOfBlockRequested - head->numberOfBlocks;
