@@ -472,14 +472,15 @@ int readWithIndex(TOStoreHnd store, const TDskObjIndex* header, uint32_t positio
         IF_NOT_OK_HANDLE_ERROR(retval);
 
         // update our records on what we've read so far
-        consumedData = dataToReadFromThisBlock;
-        lengthRemaining -= consumedData;
+        consumedData += dataToReadFromThisBlock;
+        lengthRemaining -= dataToReadFromThisBlock;
 
         // in prep for reading more data, read in the next block header in the stream
         if ( currentBlockHdr.next != NO_BLOCK ) {
             uint32_t next = currentBlockHdr.next;
             INIT(TDskObjectStoreBlockHeader, currentBlockHdr);
             retval = readBlockHeader(store, &currentBlockHdr, next);
+            IF_NOT_OK_HANDLE_ERROR(retval);
         }
 
 
