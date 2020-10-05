@@ -55,12 +55,12 @@ int ostrore_addObjectWithId(TOStoreHnd oStore, TOStoreObjID id, uint32_t length)
 int ostore_removeObject(TOStoreHnd oStore, TOStoreObjID id);
 
 // Object Operations
-int ostoreobj_setLength(TOStoreHnd oStore, TOStoreObjID id, uint32_t length);
-int ostoreobj_getLength(TOStoreHnd oStore, TOStoreObjID id, uint32_t* length);
+int ostore_setLength(TOStoreHnd oStore, TOStoreObjID id, uint32_t length);
+int ostore_getLength(TOStoreHnd oStore, TOStoreObjID id, uint32_t* length);
 
 // Reading and Writing Data
-int ostoreobj_read(TOStoreHnd oStore, TOStoreObjID id, uint32_t position, uint32_t length, void* destination);
-int ostoreobj_write(TOStoreHnd oStore, TOStoreObjID id, uint32_t position, const void* source, uint32_t length);
+int ostore_read(TOStoreHnd oStore, TOStoreObjID id, uint32_t position, uint32_t length, void* destination);
+int ostore_write(TOStoreHnd oStore, TOStoreObjID id, uint32_t position, const void* source, uint32_t length);
 
 
 #endif // OSTORE_H__

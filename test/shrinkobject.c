@@ -1,8 +1,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 #include "ostore.h"
 
+
+static const char* STORE_FILENAME = "/home/chris/development/ostore/test/test_shink.store";
+static const TOStoreObjID STRING_ID = 0x77777777;
 static const char* TEST_STRING = "Once, long ago, the Danish land owned the sway of a mighty monarch,\n"
 "Scyld Scefing, the founder of a great dynasty, the Scyldings. This\n"
 "great king Scyld had come to Denmark in a mysterious manner, since no\n"
@@ -59,56 +63,45 @@ int readstore(TOStoreHnd store) {
 	return error;
 }
 
+int makestore(const char* filename) {
+    TOStoreHnd store = NULL;
+	int error = ERR_OK;
+    error = ostore_create(filename, &store);
+    assert(error == ERR_OK);
+    const uint32_t SIZE = strlen(TEST_STRING) + 1;
+    error = ostrore_addObjectWithId(store, STRING_ID, SIZE);
+    assert(error == ERR_OK);
+    error = ostore_write(store, STRING_ID, 0, TEST_STRING, SIZE);
+    assert(error == ERR_OK);
+    ostore_close(&store);
+    return error;
+}
+
 int main(int argc, const char* argv[]) {
-	const char* filename = "/home/chris/development/ostore/test/test_string.store";
+	
 	TOStoreHnd store = NULL;
 	int error = ERR_OK;
-
-	printf("before 0x%08lx\n", (size_t)store);
-	printf("creating an store...\n");
-	error = ostore_create(filename, &store);
-	printf("completed with %d \n", error);
-	printf("after 0x%08lx\n", (size_t)store);
-
-	error = readstore(store);
-
-	printf("creating, a new object to store a string..\n");
-	const TOStoreObjID STRING_ID = 0x77777777;
-	const uint32_t SIZE = strlen(TEST_STRING) + 1;
-	char* string = malloc(SIZE);
-	memset(string, 0, SIZE);
-	error = ostrore_addObjectWithId(store, STRING_ID, SIZE);
-	printf("created with error %d\n", error);
-	// this should cause the creation of a new block in the file and an entry in the table.
-	// the block should be visible in a hex editor...
-
-	
-	error = readstore(store);
-	printf("read the store %d \n", error);
-
-	// now write to it... 
-	error = ostore_write(store, STRING_ID, 0, TEST_STRING, SIZE);
-	printf("written with error %d\n", error);
-
-	memset(string, 0, SIZE);
-	error = ostore_read(store, STRING_ID, 0, SIZE, string);
-	printf("[%d] read [%s]\n", error, string);
-
-	ostore_close(&store);
-	printf("closed store");
-	printf("after 0x%08lx\n", (size_t)store);
-	
+    error = ostore_create(STORE_FILENAME, &store);
+    assert(error == ERR_OK);
+    const uint32_t SIZE = strlen(TEST_STRING) + 1;
+    error = ostrore_addObjectWithId(store, STRING_ID, SIZE);
+    assert(error == ERR_OK);
+    error = ostore_write(store, STRING_ID, 0, TEST_STRING, SIZE);
+    assert(error == ERR_OK);
+    
+    printf("store created:\n");
 	printf("---------------------------------------------------------\n");
-	printf("open an store...\n");
-	error = ostore_open(filename, EReadOnly, &store);
-	printf("completed with %d \n", error);
-	printf("after 0x%08lx\n", (size_t)store);
-	
-	memset(string, 0, SIZE);
-	error = ostore_read(store, STRING_ID, 0, SIZE, string);
-	printf("[%d] read [%s]\n", error, string);
-	free(string);
-
+    error = readstore(store);
+    assert(error == ERR_OK);
+    uint32_t length = 0;
+    error = ostore_getLength(store, STRING_ID, &length);
+    assert(error == ERR_OK);
+    uint32_t shortLength = length / 2;
+    printf("shrinking id %d from size %u to size %u\n", STRING_ID, length, shortLength);
+    error = ostore_setLength(store, STRING_ID, shortLength);
+    printf("completed with %d error\n", error);
+	printf("---------------------------------------------------------\n");
+    error = readstore(store);
 	ostore_close(&store);
 	printf("closed store");
 	printf("after 0x%08lx\n", (size_t)store);

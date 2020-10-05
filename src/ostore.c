@@ -8,8 +8,6 @@
 
 #include "ostore_internal.h"
 
-#define REQUIRED_BLOCKS_FOR_BYTES(store, bytes) ( (bytes) / (store)->fileHeader.header.blockSize ) + ( ( (bytes) % (store)->fileHeader.header.blockSize) ? 1 : 0 )
-
 
 // Store Handling
 int ostore_open(const char* filename, TOStreamMode mode, TOStoreHnd* oStore) {
@@ -30,7 +28,7 @@ int ostore_open(const char* filename, TOStreamMode mode, TOStoreHnd* oStore) {
 
         case EReadOnly:
         fileMode = "r";
-        break;
+        break;        
     }
     store->fileMode = mode;
 
@@ -120,7 +118,7 @@ int ostore_create(const char* filename, TOStoreHnd* oStore) {
 
     //uint8_t* dataPtr = (uint8_t*)&store->fileHeader.header;
     //retval = writeToFile(store->fp, 0, sizeof(TDskObjectStoreFileHeader), dataPtr);
-
+    
     retval = updateFileHeader(store);
     IF_NOT_OK_HANDLE_ERROR(retval);
 
@@ -246,8 +244,8 @@ int ostrore_addObjectWithId(TOStoreHnd store, TOStoreObjID id, uint32_t length) 
     retval = writeObjectIndex(store, id, &index);
     IF_NOT_OK_HANDLE_ERROR(retval);
 
-
-    // assign space to the
+    
+  // assign space to the
     uint32_t blocksToAdd = REQUIRED_BLOCKS_FOR_BYTES(store, length);
     if (blocksToAdd == 0 ) blocksToAdd = 1;
 
@@ -326,7 +324,7 @@ int ostore_removeObject(TOStoreHnd store, TOStoreObjID id) {
 }
 
 // Object Operations
-int ostoreobj_setLength(TOStoreHnd store, TOStoreObjID id, uint32_t lengthRequested) {
+int ostore_setLength(TOStoreHnd store, TOStoreObjID id, uint32_t lengthRequested) {
     assert(store);
     START;
     LOCAL_MEMZ(TDskObjIndex, head);
@@ -337,7 +335,7 @@ int ostoreobj_setLength(TOStoreHnd store, TOStoreObjID id, uint32_t lengthReques
     FINISH;
 }
 
-int ostoreobj_getLength(TOStoreHnd store, TOStoreObjID id, uint32_t* length) {
+int ostore_getLength(TOStoreHnd store, TOStoreObjID id, uint32_t* length) {
     assert(store);
     assert(id != OBJECT_TABLE_ID || id != TRASH_TABLE_ID);
     assert(length);
@@ -358,7 +356,7 @@ int ostoreobj_getLength(TOStoreHnd store, TOStoreObjID id, uint32_t* length) {
 }
 
 // Reading and Writing Data
-int ostoreobj_read(TOStoreHnd store, TOStoreObjID id, uint32_t position, uint32_t length, void* destination) {
+int ostore_read(TOStoreHnd store, TOStoreObjID id, uint32_t position, uint32_t length, void* destination) {
     assert(store);
     assert(id != OBJECT_TABLE_ID || id != TRASH_TABLE_ID);
     assert(destination);
@@ -375,7 +373,7 @@ int ostoreobj_read(TOStoreHnd store, TOStoreObjID id, uint32_t position, uint32_
     FINISH;
 }
 
-int ostoreobj_write(TOStoreHnd store, TOStoreObjID id, uint32_t position, const void* source, uint32_t length) {
+int ostore_write(TOStoreHnd store, TOStoreObjID id, uint32_t position, const void* source, uint32_t length) {
     assert(store);
     assert(id != OBJECT_TABLE_ID || id != TRASH_TABLE_ID);
     assert(source);

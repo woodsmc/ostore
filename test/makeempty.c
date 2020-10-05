@@ -19,8 +19,8 @@ int main(int argc, const char* argv[]) {
 		error = ostore_getObjectIdFromIndex(store, i, &id);
 		printf("error %d, ostore_getObjectIdFromIndex (id = %u) \n", error, id);
 		uint32_t length = 0;
-		error = ostoreobj_getLength(store, id, &length);
-		printf("error %d, ostoreobj_getLength (length = %u)\n", error, length);
+		error = ostore_getLength(store, id, &length);
+		printf("error %d, ostore_getLength (length = %u)\n", error, length);
 		printf("object id %d has length %d\n", id, length);
 
 	}

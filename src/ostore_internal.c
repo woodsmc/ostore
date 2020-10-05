@@ -4,9 +4,7 @@ static const int8_t BLOCK_FILL[4] = { 'E', 'M', 'P', 'Y'};
 
 int setLengthWithIndex(TOStoreHnd store, TDskObjIndex* head, uint32_t lengthRequested) {
     START;
-    uint32_t numberOfBlockRequested = lengthRequested / store->fileHeader.header.blockSize;
-
-    numberOfBlockRequested = REQUIRED_BLOCKS_FOR_BYTES(store, lengthRequested);
+    uint32_t numberOfBlockRequested = REQUIRED_BLOCKS_FOR_BYTES(store, lengthRequested);
 
     if (numberOfBlockRequested > head->numberOfBlocks) {
         // add blocks
@@ -151,8 +149,11 @@ int shirnkLengthWithIndex(TOStoreHnd store, TDskObjIndex* head, uint32_t blocksT
         IF_NOT_OK_HANDLE_ERROR(retval);
         counter--;
     }
-
-    retval = readBlockHeader(store, freeBlocks, currentBlock.last);
+    
+    // the currentBlock == the last block we should have on the index
+    // the first new "freeBlocks" is the last block
+    VALIDATE(currentBlock.next == NO_BLOCK, ERR_CORRUPT); // if this happens the file is corrupt.
+    retval = readBlockHeader(store, freeBlocks, currentBlock.next);
     IF_NOT_OK_HANDLE_ERROR(retval);
 
     // update blocks and write them back to disk, then update header
@@ -378,7 +379,7 @@ int writeObjectIndex(TOStoreHnd oStore, TOStoreObjID id, TDskObjIndex* header) {
         uint32_t numberOfObjects = oStore->numberOfObjects + 1;
         uint32_t totalSpaceNeeded = sizeof(uint32_t) + ( numberOfObjects * sizeof(TDskObjIndex));
         if ( totalSpaceNeeded > (oStore->tableOfObjectsHeader.header.numberOfBlocks * oStore->fileHeader.header.blockSize) ) {
-            retval = ostoreobj_setLength(oStore, oStore->tableOfObjectsHeader.header.id, totalSpaceNeeded);
+            retval = ostore_setLength(oStore, oStore->tableOfObjectsHeader.header.id, totalSpaceNeeded);
             IF_NOT_OK_HANDLE_ERROR(retval);
         }
 

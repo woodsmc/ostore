@@ -14,7 +14,7 @@ This document describes the API provided by OStore. It does not define the file 
 | ------- | -------------- | ----------- | --------------------------------- |
 | 0.1     | August 4 2020  | Chris Woods | Initial concept documented        |
 | 0.2     | August 27 2020 | Chris Woods | Refined as part of implementation |
-|         |                |             |                                   |
+| 0.3     | October 4 2020 | Chris Woods | Updated API function names        |
 
 
 
@@ -326,10 +326,10 @@ This function will assert on:
 
 ### Object Operations
 
-#### `ostoreobj_setLength`
+#### `ostore_setLength`
 
 ```c
-int ostoreobj_setLength(TOStoreHnd oStore, TOStoreObjID id, uint32_t length);
+int ostore_setLength(TOStoreHnd oStore, TOStoreObjID id, uint32_t length);
 ```
 
 **Function Description:** Sets the length of an object within the store. This can be used to extend the objects length and force allocate more space to it, or alternatively it can be used to truncate the object and release space that has been assigned to it.
@@ -354,10 +354,10 @@ This function will assert on:
 - `oStore` is not valid.
 - `id` : The ID does not exist.
 
-#### `ostoreobj_getLength`
+#### `ostore_getLength`
 
 ```c
-int ostoreobj_getLength(TOStoreHnd oStore, TOStoreObjID id, uint32_t* length);
+int ostore_getLength(TOStoreHnd oStore, TOStoreObjID id, uint32_t* length);
 ```
 
 **Function Description:** Gets the length of the object within the store. 
@@ -386,10 +386,10 @@ This function will assert on:
 
 ### Reading and Writing Data
 
-#### `ostoreobj_read`
+#### `ostore_read`
 
 ```c
-int ostoreobj_read(TOStoreHnd oStore, TOStoreObjID id, uint32_t position, uint32_t length,
+int ostore_read(TOStoreHnd oStore, TOStoreObjID id, uint32_t position, uint32_t length,
                    void* destination);
 ```
 
