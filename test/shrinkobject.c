@@ -63,6 +63,34 @@ int readstore(TOStoreHnd store) {
 	return error;
 }
 
+void dumpstore(const char* filename) {
+	TOStoreHnd store = NULL;
+	printf("open an store...\n");
+	int error = ostore_open(filename, EReadOnly, &store);
+	assert(error == ERR_OK);
+	printf("completed with %d \n", error);
+	printf("after 0x%08lx\n", (size_t)store);
+	
+	printf("---------------------------|%s|-----------------------------\n", filename);
+	uint32_t max = 0;
+	error = ostore_enumerateObjects(store, &max);
+	assert(error == ERR_OK);
+	printf("[%d]  number of objects %d\n", error, max);
+
+	for(uint32_t i = 0; i < max; i++) {
+		TOStoreObjID id = 0;
+		error = ostore_getObjectIdFromIndex(store, i, &id);
+		uint32_t length = 0;
+		int error2 = ostore_getLength(store, id, &length);
+		printf("[%s]  [%d][%d] object id %d | %x  has length %d | %x\n", indexType(i), error, error2, id, id, length, length);
+
+	}
+	printf("----------------------------|%s|----------------------------\n", filename);
+	ostore_close(&store);
+	printf("closed store");
+	printf("after 0x%08lx\n", (size_t)store);
+}
+
 int makestore(const char* filename) {
     TOStoreHnd store = NULL;
 	int error = ERR_OK;
@@ -90,7 +118,7 @@ int main(int argc, const char* argv[]) {
     assert(error == ERR_OK);
     
     printf("store created:\n");
-	printf("---------------------------------------------------------\n");
+	printf("--------------------------------------------------------\n");
     error = readstore(store);
     assert(error == ERR_OK);
     uint32_t length = 0;
@@ -105,6 +133,9 @@ int main(int argc, const char* argv[]) {
 	ostore_close(&store);
 	printf("closed store");
 	printf("after 0x%08lx\n", (size_t)store);
+
+
+	dumpstore(STORE_FILENAME);
 
 	return 0;
 }
