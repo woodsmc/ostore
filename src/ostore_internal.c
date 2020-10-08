@@ -47,7 +47,7 @@ int growLengthWithIndex(TOStoreHnd store, TDskObjIndex* head, uint32_t blocksToA
     LOCAL_MEMZ(TDskObjectStoreBlockHeader,blockhead);
     // consume anything in the trash.
     if ( blocksToTakeFromTrash > 0) {
-        retval = removeBlocksFromIndex(store, head, &blockhead, blocksToTakeFromTrash);
+        retval = removeBlocksFromIndex(store, &store->tashHeader.header, &blockhead, blocksToTakeFromTrash);
         IF_NOT_OK_HANDLE_ERROR(retval);
         retval = addBlocksToIndex(store, head, &blockhead);
         IF_NOT_OK_HANDLE_ERROR(retval);
@@ -138,37 +138,53 @@ int shirnkLengthWithIndex(TOStoreHnd store, TDskObjIndex* head, uint32_t blocksT
     assert(index);
     assert(freeBlocks);
     assert(numberOfBlocksToRemove > 0);
-    assert(numberOfBlocksToRemove < index->numberOfBlocks);
+    assert(numberOfBlocksToRemove <= index->numberOfBlocks);
 
     START;
-    LOCAL_MEMZ(TDskObjectStoreBlockHeader, currentBlock);
-    retval = readBlockHeader(store, &currentBlock, index->tailBlock);
-    uint32_t counter = numberOfBlocksToRemove;
-    while(counter != 0) {
-        retval = readBlockHeader(store, &currentBlock, currentBlock.last);
+    if (numberOfBlocksToRemove == index->numberOfBlocks) { // we are removing all blocks! :-)
+        // this is easy, we only need to update the index
+        // everything else (the blocks and their double linked list) stays the same.
+        // before we do, we need to make sure that freeBlocks contains the head block
+        retval = readBlockHeader(store, freeBlocks, index->headBlock);
         IF_NOT_OK_HANDLE_ERROR(retval);
-        counter--;
+
+        index->numberOfBlocks = 0;
+        index->headBlock = NO_BLOCK;
+        index->tailBlock = NO_BLOCK;
+
+
+    } else { // we are doing a partial removal.
+        LOCAL_MEMZ(TDskObjectStoreBlockHeader, currentBlock);
+        retval = readBlockHeader(store, &currentBlock, index->tailBlock);
+        uint32_t counter = numberOfBlocksToRemove;
+        while(counter != 0) {
+            retval = readBlockHeader(store, &currentBlock, currentBlock.last);
+            IF_NOT_OK_HANDLE_ERROR(retval);
+            counter--;
+        }
+        
+        // the currentBlock == the last block we should have on the index
+        // the first new "freeBlocks" is the last block
+        VALIDATE(currentBlock.next == NO_BLOCK, ERR_CORRUPT); // if this happens the file is corrupt.
+        retval = readBlockHeader(store, freeBlocks, currentBlock.next);
+        IF_NOT_OK_HANDLE_ERROR(retval);
+
+        // update blocks and write them back to disk, then update header
+        index->tailBlock = currentBlock.blockFileIndex;
+        freeBlocks->last = NO_BLOCK;
+        currentBlock.next = NO_BLOCK;
+        index->numberOfBlocks -= numberOfBlocksToRemove;
+
+        retval = writeBlockHeader(store, freeBlocks);
+        IF_NOT_OK_HANDLE_ERROR(retval);
+
+        retval = writeBlockHeader(store, &currentBlock);
+        IF_NOT_OK_HANDLE_ERROR(retval);        
     }
-    
-    // the currentBlock == the last block we should have on the index
-    // the first new "freeBlocks" is the last block
-    VALIDATE(currentBlock.next == NO_BLOCK, ERR_CORRUPT); // if this happens the file is corrupt.
-    retval = readBlockHeader(store, freeBlocks, currentBlock.next);
-    IF_NOT_OK_HANDLE_ERROR(retval);
 
-    // update blocks and write them back to disk, then update header
-    index->tailBlock = currentBlock.blockFileIndex;
-    freeBlocks->last = NO_BLOCK;
-    currentBlock.next = NO_BLOCK;
 
-    retval = writeBlockHeader(store, freeBlocks);
-    IF_NOT_OK_HANDLE_ERROR(retval);
 
-    retval = writeBlockHeader(store, &currentBlock);
-    IF_NOT_OK_HANDLE_ERROR(retval);
-
-    // write the update to the index
-    index->numberOfBlocks -= numberOfBlocksToRemove;
+    // write the update to the index    
     retval = writeObjectIndex(store, index->id, index);
     IF_NOT_OK_HANDLE_ERROR(retval);
 

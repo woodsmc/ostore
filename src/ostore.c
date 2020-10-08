@@ -272,6 +272,7 @@ int ostore_removeObject(TOStoreHnd store, TOStoreObjID id) {
     uint32_t reducedObjectCount = store->numberOfObjects - 1;
     // uint32_t originalObjectCount = store->numberOfObjects; // think about restoring blocks on error here
     LOCAL_MEMZ(TDskObjIndex, headerToDelete);
+    LOCAL_MEMZ(TDskObjectStoreBlockHeader, freeBlocks);
 
     for(i = 0; i < store->numberOfObjects; i++) {
         uint32_t offset = (i * sizeof(TDskObjIndex)) + sizeof(uint32_t);
@@ -289,6 +290,14 @@ int ostore_removeObject(TOStoreHnd store, TOStoreObjID id) {
         IF_NOT_OK_HANDLE_ERROR(ERR_NOT_FOUND);
     }
 
+    // at this point we've found an entry to remove
+    // free the blocks assocaited with the entry
+    if ( headerToDelete.numberOfBlocks > 0) {
+        retval = shirnkLengthWithIndex(store, &headerToDelete, headerToDelete.numberOfBlocks);
+        IF_NOT_OK_HANDLE_ERROR(retval);
+    }
+    
+    // then start updating the table
     startingWrite = true;
     for(i = index; i < reducedObjectCount; i++) {
         uint32_t offsetOld = (i * sizeof(TDskObjIndex)) + sizeof(uint32_t);
