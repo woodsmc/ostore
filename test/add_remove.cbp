@@ -40,7 +40,7 @@
 		<Unit filename="../src/ostore_internal.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="shrinkobject.c">
+		<Unit filename="add_delete_object.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Extensions />
