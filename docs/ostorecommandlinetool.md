@@ -93,7 +93,11 @@ ostore my.store -insert FILE 12 ./photo.png
 
 This will insert, or overwrite if it already exists an object with the ID of 12 into the file `my.store` with the contents of the file `./photo.png`
 
+### Version Information
 
+This is available by invoking the tool with no arguments.
 
-
+```
+ostore
+```
 
