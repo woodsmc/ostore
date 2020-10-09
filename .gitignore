@@ -70,3 +70,5 @@ test/test.store
 test/test_makeempty
 test/test_readstore
 
+## cmake
+build/
