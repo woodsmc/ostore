@@ -21,7 +21,7 @@ This document describes the OStore command line tool and how to use it. It does 
 ## Tool Usage
 
 ```
-ostore <filename> (-create | -list | -extract | -insert ) (FILE | TEXT) <ID> [<outfile> | <text>]	
+ostore <filename> (-create | -list | -extract | -insert ) <ID> (FILE | TEXT) [<outfile> | <text>]	
 
 ```
 
@@ -32,6 +32,25 @@ ostore <filename> -create
 ```
 
 This will create a OStore with the file name `<filename>` .
+```
+OStore Version 1.0 by Chris Woods
+Creating file <filename> ... OK
+```
+
+Upon an error the tool will report
+
+```
+OStore Version 1.0 by Chris Woods
+Creating file <filename> ... Error <reason>
+```
+
+Where `<reason>` will be one of:
+
+- Destination unreachable
+
+- No permission
+
+  
 
 ### List the contents of a file
 
@@ -44,7 +63,7 @@ This will list the contents of an OStore file.
 ### Extract an object from a file
 
 ```
-ostore <filename> -extract (FILE | TEXT ) <ID> [<outfile>]
+ostore <filename> -extract <ID> (FILE | TEXT ) [<outfile>]
 ```
 
 This will extract the contents of an object either to the console as text when the TEXT type is specified, or to another file with the FILE type is specified. 
@@ -56,7 +75,7 @@ This will extract the contents of an object either to the console as text when t
 #### Example : Extract text to console
 
 ```
-ostore my.store -extract TEXT 12
+ostore my.store -extract 12 TEXT
 ```
 
 The example above will extract the contents of object 12 to the console as text.
@@ -64,7 +83,7 @@ The example above will extract the contents of object 12 to the console as text.
 #### Example: Extract object to file
 
 ```
-ostore my.store -extract FILE 12 out.png
+ostore my.store -extract 12 FILE out.png
 ```
 
 This example above will extract the contents of object 12 and store them as a file called `out.png`.
@@ -72,7 +91,7 @@ This example above will extract the contents of object 12 and store them as a fi
 ### Insert or Overwrite an Object
 
 ```
-ostore <filename> -insert (FILE | TEXT ) <ID> (<outfile> | <text>)
+ostore <filename> -insert <ID> (FILE | TEXT ) (<outfile> | <text>)
 ```
 
 This will insert an object with the content specified, either text from the command line or the contents of a file. 
@@ -80,7 +99,7 @@ This will insert an object with the content specified, either text from the comm
 #### Example: Insert text to object
 
 ```
-ostore my.store -insert TEXT 12 "this is an exampe of some text"
+ostore my.store -insert 12 TEXT "this is an exampe of some text"
 ```
 
 This will insert, or overwrite it if already exists an object with the ID of 12 into the file `my.store` with the contents `this is an example of some text`. Note that the quotation marks are not stored.
@@ -88,7 +107,7 @@ This will insert, or overwrite it if already exists an object with the ID of 12 
 #### Example: Insert file as object
 
 ```
-ostore my.store -insert FILE 12 ./photo.png
+ostore my.store -insert 12 FILE ./photo.png
 ```
 
 This will insert, or overwrite if it already exists an object with the ID of 12 into the file `my.store` with the contents of the file `./photo.png`
@@ -101,3 +120,9 @@ This is available by invoking the tool with no arguments.
 ostore
 ```
 
+This will produce the following message:
+
+```
+oStore Version 1.0
+Written by Chris Woods, October 2020.
+```
