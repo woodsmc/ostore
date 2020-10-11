@@ -15,12 +15,15 @@ int ostore_open(const char* filename, TOStreamMode mode, TOStoreHnd* oStore) {
     assert(filename != NULL);
     assert(mode == EReadOnly || mode == EReadWrite);
     START;
-
-    TOStore* store = zmalloc(TOStore);
+    LOCAL_MEMZ(TDskObjectStoreBlockHeader, firstBlockHeader);
+    uint8_t* bytePtr = NULL;
+    const char* fileMode = NULL;
+    
+    TOStore* store = (TOStore*) zmalloc(TOStore);
     if ( store == NULL )
         HANDLE_ERROR(ERR_MEM);
 
-    const char* fileMode = NULL;
+    
     switch(mode) {
         case EReadWrite:
         fileMode = "r+"; // drop the 'b' binary
@@ -35,14 +38,14 @@ int ostore_open(const char* filename, TOStreamMode mode, TOStoreHnd* oStore) {
     store->fp = fopen(filename, fileMode);
     VALIDATE(store->fp == NULL, ERR_NOT_FOUND);
 
-    uint8_t* bytePtr = (uint8_t*)&store->fileHeader.header;
+    bytePtr = (uint8_t*)&store->fileHeader.header;
     retval = readFromFile(store->fp, 0, sizeof(TDskObjectStoreFileHeader), bytePtr);
     IF_NOT_OK_HANDLE_ERROR(retval);
     VALIDATE( !IDS_MATCH(FILE_ID, store->fileHeader.header.identifyingWord), ERR_CORRUPT);
     VALIDATE(store->fileHeader.header.versionNumner != VERSION, ERR_CORRUPT);
 
-    TDskObjectStoreBlockHeader firstBlockHeader;
-    memset(&firstBlockHeader, 0, sizeof(TDskObjectStoreBlockHeader));
+
+    
     bytePtr = (uint8_t*)&firstBlockHeader;
     retval = readFromFile(store->fp, FILE_LOCATION_FOR_FIRST_BLOCK, sizeof(TDskObjectStoreBlockHeader), bytePtr);
     IF_NOT_OK_HANDLE_ERROR(retval);
@@ -82,8 +85,10 @@ int ostore_create(const char* filename, TOStoreHnd* oStore) {
     assert(filename != NULL);
     START;
 
+    uint8_t* dataPtr = NULL;
+    LOCAL_MEMZ(TDskObjectStoreBlockHeader, firstBlockHeader);
 
-    TOStore* store = zmalloc(TOStore);
+    TOStore* store = (TOStore*) zmalloc(TOStore);
     if ( store == NULL )
         HANDLE_ERROR(ERR_MEM);
 
@@ -103,8 +108,6 @@ int ostore_create(const char* filename, TOStoreHnd* oStore) {
     store->tashHeader.header.id = TRASH_TABLE_ID;
     store->tashHeader.header.numberOfBlocks = 0;
 
-    TDskObjectStoreBlockHeader firstBlockHeader;
-    memset(&firstBlockHeader, 0, sizeof(TDskObjectStoreBlockHeader));
     firstBlockHeader.blockFileIndex = 0;
     firstBlockHeader.id = OBJECT_TABLE_ID;
     SET_ID(firstBlockHeader.identifyingWord, BLOCK_ID);
@@ -125,7 +128,7 @@ int ostore_create(const char* filename, TOStoreHnd* oStore) {
     retval = addBlockToFile(store->fp, &firstBlockHeader, DEFUALT_BLOCKSIZE);
     IF_NOT_OK_HANDLE_ERROR(retval);
 
-    uint8_t* dataPtr = (uint8_t*)&store->numberOfObjects;
+    dataPtr = (uint8_t*)&store->numberOfObjects;
     retval = writeToFile(store->fp, FILE_LOCATION_FOR_NUMBER_OF_OBJECTS, sizeof(uint32_t),  dataPtr);
     IF_NOT_OK_HANDLE_ERROR(retval);
 
@@ -226,6 +229,8 @@ int ostrore_addObjectWithId(TOStoreHnd store, TOStoreObjID id, uint32_t length) 
     // check to make sure an object with the same id doesn't exist
     START;
     retval = ostore_objectIdExists(store, id);
+    uint32_t blocksToAdd = 0;
+
     if ( retval != ERR_NOT_FOUND) {
         retval = ERR_ALREADY_EXISTS;
     } else {
@@ -246,7 +251,7 @@ int ostrore_addObjectWithId(TOStoreHnd store, TOStoreObjID id, uint32_t length) 
 
     
   // assign space to the
-    uint32_t blocksToAdd = REQUIRED_BLOCKS_FOR_BYTES(store, length);
+    blocksToAdd = REQUIRED_BLOCKS_FOR_BYTES(store, length);
     if (blocksToAdd == 0 ) blocksToAdd = 1;
 
     retval = growLengthWithIndex(store, &index, blocksToAdd);
@@ -388,15 +393,19 @@ int ostore_write(TOStoreHnd store, TOStoreObjID id, uint32_t position, const voi
     assert(source);
 
     START;
+    uint32_t totalLength = 0;
+    uint32_t availableSpace = 0;
+    uint8_t* dataPtr = NULL;
+
     LOCAL_MEMZ(TDskObjIndex, head);
     retval = readObjectIndex(store, id, &head);
     IF_NOT_OK_HANDLE_ERROR(retval);
 
     // if there are more blocks needed, than are available, assert, this should be checked before invoking.
-    uint32_t totalLength = position + length;
-    uint32_t availableSpace = store->fileHeader.header.blockSize * head.numberOfBlocks;
+    totalLength = position + length;
+    availableSpace = store->fileHeader.header.blockSize * head.numberOfBlocks;
     assert(totalLength < availableSpace);
-    uint8_t* dataPtr = (uint8_t*)source;
+    dataPtr = (uint8_t*)source;
     retval = writeWithIndex(store, &head, position, length, dataPtr);
 
     PROCESS_ERROR;

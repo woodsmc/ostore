@@ -273,6 +273,16 @@ int addBlocksToIndex(TOStoreHnd store, TDskObjIndex* index, TDskObjectStoreBlock
 
 int writeWithIndex(TOStoreHnd store, const TDskObjIndex* header, uint32_t position, uint32_t length, void* source) {
     START;
+
+    // pre allocated local variables
+    uint8_t* sourceArray = NULL;
+    uint32_t offset = 0;
+    uint32_t lengthRemaining = 0;
+    uint32_t lengthAvailableInThisBlock = 0;
+    uint32_t bytesToWrite = 0;
+    uint32_t sourceOffset = 0;
+
+    // start of work here.
     uint32_t sequenceNumber = 0;
     uint32_t startingBlock = position / store->fileHeader.header.blockSize;
 
@@ -297,12 +307,14 @@ int writeWithIndex(TOStoreHnd store, const TDskObjIndex* header, uint32_t positi
 
 
     // write in each subsequent block
-    uint8_t* sourceArray = (uint8_t*)source;
-    uint32_t offset = position - (startingBlock * store->fileHeader.header.blockSize);
-    uint32_t lengthRemaining = length;
-    uint32_t lengthAvailableInThisBlock = store->fileHeader.header.blockSize - offset;
-    uint32_t bytesToWrite = (lengthRemaining < lengthAvailableInThisBlock) ? lengthRemaining : lengthAvailableInThisBlock;
-    uint32_t sourceOffset = 0;
+    // initialize variables here
+    sourceArray = (uint8_t*)source;
+    offset = position - (startingBlock * store->fileHeader.header.blockSize);
+    lengthRemaining = length;
+    lengthAvailableInThisBlock = store->fileHeader.header.blockSize - offset;
+    bytesToWrite = (lengthRemaining < lengthAvailableInThisBlock) ? lengthRemaining : lengthAvailableInThisBlock;
+    sourceOffset = 0;
+    // loop and work here
     while(lengthRemaining > 0) {
         uint32_t positionInFile = CONVERT_TO_FILE_OFFSET(currentBlockHdr.blockFileIndex, store->fileHeader.header.blockSize, offset);
         retval = writeToFile(store->fp, positionInFile, bytesToWrite, &sourceArray[sourceOffset]);
@@ -337,10 +349,11 @@ int addObjectIndex(TOStoreHnd store, TDskObjIndex* header) {
     uint32_t originalObjectCount = store->numberOfObjects;
     uint32_t nextObjectCount = originalObjectCount + 1;
     uint32_t spaceRequired = sizeof(uint32_t) + ( (nextObjectCount+1) * sizeof(TDskObjIndex));
+    uint32_t offset = 0;
     retval = setLengthWithIndex(store, &(store->tableOfObjectsHeader.header), spaceRequired);
     IF_NOT_OK_HANDLE_ERROR(retval);
 
-    uint32_t offset = sizeof(uint32_t) + (nextObjectCount * sizeof(TDskObjIndex));
+    offset = sizeof(uint32_t) + (nextObjectCount * sizeof(TDskObjIndex));
     retval = writeWithIndex(store, &(store->tableOfObjectsHeader.header), offset, sizeof(TDskObjIndex), header);
     IF_NOT_OK_HANDLE_ERROR(retval);
 
@@ -440,22 +453,26 @@ int readObjectIndex(TOStoreHnd oStore, TOStoreObjID id, TDskObjIndex* header){
 int readWithIndex(TOStoreHnd store, const TDskObjIndex* header, uint32_t position, uint32_t length, void* destination) {
    START;
 
-   uint32_t objectSizeInBytes = store->fileHeader.header.blockSize * header->numberOfBlocks;
-   uint32_t endOfRead = position + length;
-   uint32_t sequenceBlock = position / store->fileHeader.header.blockSize;
+    uint32_t objectSizeInBytes = store->fileHeader.header.blockSize * header->numberOfBlocks;
+    uint32_t endOfRead = position + length;
+    uint32_t sequenceBlock = position / store->fileHeader.header.blockSize;
+    uint32_t index = 0;
+    uint32_t consumedData = 0;
+    uint32_t offsetInBlock = 0;
+    uint8_t* dest = NULL;
+    uint32_t lengthRemaining = 0;
 
+    VALIDATE( endOfRead > objectSizeInBytes, ERR_OVERFLOW );
+    LOCAL_MEMZ(TDskObjectStoreBlockHeader, currentBlockHdr);
 
-   VALIDATE( endOfRead > objectSizeInBytes, ERR_OVERFLOW );
-   LOCAL_MEMZ(TDskObjectStoreBlockHeader, currentBlockHdr);
+    // read in the initial first block sequenceBlock == 0
+    index = header->headBlock;
+    retval = readBlockHeader(store, &currentBlockHdr, index);
+    IF_NOT_OK_HANDLE_ERROR(retval);
 
-   // read in the initial first block sequenceBlock == 0
-   uint32_t index = header->headBlock;
-   retval = readBlockHeader(store, &currentBlockHdr, index);
-   IF_NOT_OK_HANDLE_ERROR(retval);
-
-   // this iterates forward to the required block in the chain
-   index = currentBlockHdr.next;
-   while(sequenceBlock > 0 && index != NO_BLOCK) {
+    // this iterates forward to the required block in the chain
+    index = currentBlockHdr.next;
+    while(sequenceBlock > 0 && index != NO_BLOCK) {
         INIT(TDskObjectStoreBlockHeader, currentBlockHdr);
         retval = readBlockHeader(store, &currentBlockHdr, index);
         IF_NOT_OK_HANDLE_ERROR(retval);
@@ -464,14 +481,14 @@ int readWithIndex(TOStoreHnd store, const TDskObjIndex* header, uint32_t positio
             VALIDATE(index != NO_BLOCK, ERR_CORRUPT);
             index = currentBlockHdr.next;
         }
-   }
+    }
 
     // we have found the right block, now we need to read until we've consumed all data
     memset(destination, 0, length);
-    uint32_t consumedData = 0;
-    uint32_t offsetInBlock = position - (sequenceBlock * store->fileHeader.header.blockSize);
-    uint8_t* dest = (uint8_t*) destination;
-    uint32_t lengthRemaining = length;
+    consumedData = 0;
+    offsetInBlock = position - (sequenceBlock * store->fileHeader.header.blockSize);
+    dest = (uint8_t*) destination;
+    lengthRemaining = length;
 
     while (consumedData != length ) {
         // determine data we can read from this block here
@@ -504,8 +521,8 @@ int readWithIndex(TOStoreHnd store, const TDskObjIndex* header, uint32_t positio
     }
 
 
-   PROCESS_ERROR;
-   FINISH;
+    PROCESS_ERROR;
+    FINISH;
 }
 
 
