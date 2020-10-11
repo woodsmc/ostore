@@ -8,6 +8,7 @@
 
 #include "ostore_internal.h"
 
+#include "ostoreconfig.h"
 
 // Store Handling
 int ostore_open(const char* filename, TOStreamMode mode, TOStoreHnd* oStore) {
@@ -410,4 +411,20 @@ int ostore_write(TOStoreHnd store, TOStoreObjID id, uint32_t position, const voi
 
     PROCESS_ERROR;
     FINISH;
+}
+
+int ostore_version_major() {
+#ifdef FULL_LIB_BUILD    
+    return ostore_VERSION_MAJOR;
+#else
+    return 0;
+#endif
+}
+
+int ostore_version_minor() {
+#ifdef FULL_LIB_BUILD
+    return ostore_VERSION_MINOR;
+#else
+    return 0;
+#endif
 }

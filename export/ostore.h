@@ -62,5 +62,7 @@ int ostore_getLength(TOStoreHnd oStore, TOStoreObjID id, uint32_t* length);
 int ostore_read(TOStoreHnd oStore, TOStoreObjID id, uint32_t position, uint32_t length, void* destination);
 int ostore_write(TOStoreHnd oStore, TOStoreObjID id, uint32_t position, const void* source, uint32_t length);
 
+int ostore_version_major();
+int ostore_version_minor();
 
 #endif // OSTORE_H__
