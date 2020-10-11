@@ -1,0 +1,7 @@
+#ifndef OSTORECMD_CONFIG_IN_H_
+#define OSTORECMD_CONFIG_IN_H_
+
+#define ostorecmd_VERSION_MAJOR @ostorecmd_VERSION_MAJOR@
+#define ostorecmd_VERSION_MINOR @ostorecmd_VERSION_MINOR@
+
+#endif // OSTORE_CONFIG_IN_H_

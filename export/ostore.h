@@ -1,6 +1,3 @@
-#ifndef OSTORE_H__
-#define OSTORE_H__
-
 /******************************************************************************
 * OStore - a simple resliant binary object storage format                     *
 *                                                                             *
@@ -20,8 +17,15 @@
 ******************************************************************************/
 
 
+#ifndef OSTORE_H__
+#define OSTORE_H__
 
 #include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 #define ERR_OK 0                // no error
 #define ERR_NOT_FOUND -1        // not found
@@ -64,5 +68,9 @@ int ostore_write(TOStoreHnd oStore, TOStoreObjID id, uint32_t position, const vo
 
 int ostore_version_major();
 int ostore_version_minor();
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // OSTORE_H__

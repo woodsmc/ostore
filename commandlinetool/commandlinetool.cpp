@@ -1,3 +1,21 @@
+/******************************************************************************
+* OStore - a simple resliant binary object storage format                     *
+*                                                                             *
+* Copyright Notice and License                                                *
+*  (c) Copyright 2020 Chris Woods.                                            *
+*                                                                             *
+*  Licensed under the Apache License, Version 2.0 (the "License"); you may    *
+*  not use this file except in compliance with the License. You may obtain a  *
+*  copy of the License at :  [http://www.apache.org/licenses/LICENSE-2.0]     *
+*                                                                             *
+*  Unless required by applicable law or agreed to in writing, software        *
+*  distributed under the License is distributed on an "AS IS" BASIS,          *
+*  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   *
+*  See the License for the specific language governing permissions and        *
+*  limitations under the License.                                             *
+*                                                                             *
+******************************************************************************/
+
 #include <iostream>
 #include <stdio.h>
 #include <string>
@@ -5,8 +23,12 @@
 #include <stdint.h>
 
 #include "parameters.h"
+#include "ostorecmdconfig.h"
+#include "ostore.h"
 
-#define BANNER_TXT "oStore Command Line Tool Version 1.0 | by Chris Woods 2020\n"
+#define BANNER_TXT "oStore Command Line Tool, version %d.%d (c) Copyright Chris Woods 2020\n"\
+"oStore library version %d.%d (c) Copyright Chris Woods 2020\n"
+
 #define ERROR_STOP_TXT  "There is an error, and I can not continue.\n"
 
 typedef int (*TStoreFunction)(const TParameters& parameters);
@@ -54,7 +76,9 @@ int insertObject(const TParameters& parameters) {
 
 
 int main(int argc, const char* argv[]) {
-    printf(BANNER_TXT);
+    printf(BANNER_TXT, 
+        ostorecmd_VERSION_MAJOR, ostorecmd_VERSION_MINOR,
+        ostore_version_major(), ostore_version_minor());
     TParameters parameters;
     parameters.populate(argc, argv);    
     parameters.validate();

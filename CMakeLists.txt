@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(ostore VERSION 1.0.0 DESCRIPTION "object storage in single file")
+project(ostoretools VERSION 1.0.0 DESCRIPTION "object storage in single file")
 
-add_subdirectory(src)
+add_subdirectory(ostore)
+add_subdirectory(commandlinetool)
 
