@@ -25,11 +25,13 @@
 #include "parameters.h"
 #include "ostorecmdconfig.h"
 #include "ostore.h"
+#include "iobase.h"
 
 #define BANNER_TXT "oStore Command Line Tool, version %d.%d (c) Copyright Chris Woods 2020\n"\
 "oStore library version %d.%d (c) Copyright Chris Woods 2020\n"
 
 #define ERROR_STOP_TXT  "There is an error, and I can not continue.\n"
+
 
 typedef int (*TStoreFunction)(const TParameters& parameters);
 
@@ -48,18 +50,116 @@ static const TStoreFunction STOREFUNCTIONS[] = {
     &insertObject
 };
 
+static CIOBaseRead* makeReader(const TParameters& params) {
+    CIOBaseRead* retval = NULL;
+    switch(params.m_type) {
+        case EFile:
+        retval = new CIOInputFile();
+        break;
+        case EText:
+        retval = new CIOInputText();
+        break;
+    }
+
+    if ( retval ) {
+        retval->setup(params);
+    }
+    return retval;
+}
+
+static CIOBaseWrite* makeWriter(const TParameters& params) {
+    CIOBaseWrite* retval = NULL;
+    switch(params.m_type) {
+        case EFile:
+        retval = new CIOOutputFile();
+        break;
+        case EText:
+        retval = new CIOOutputText();
+        break;
+    }
+
+    if ( retval ) {
+        retval->setup(params);
+    }
+    return retval;    
+}
+
 int error(const TParameters& parameters) {
     printf(ERROR_STOP_TXT);
     return 1;
 }
 
 int createNewStore(const TParameters& parameters) {
-    printf("TO BE DONE : %s\n", __PRETTY_FUNCTION__);
+    TOStoreHnd store = NULL;
+    printf("creating %s... ", parameters.m_filename.c_str());
+    int error = ostore_create(parameters.m_filename.c_str(), &store);
+    
+    if(error != ERR_OK) {
+        printf("[error %d]\n", error);
+        return 1;
+    }
+    ostore_close(&store);
+    printf("[ok]\n");    
     return 0;
 }
 
+static const char* indexType(uint32_t in) {
+	switch(in) {
+		case 0:
+		return "index";
+		break;
+		case 1:
+		return "trash";
+		break;
+		default:
+		return " user";
+	}
+}
+
+static void readstore(TOStoreHnd store) {
+	
+	uint32_t max = 0;
+    printf("number of objects... ");
+	int error = ostore_enumerateObjects(store, &max);
+    if ( error != 0 ) {
+        printf( "[error %d]\n", error);
+        return;
+    }
+    printf("[ok %d objects]\n", max);
+    printf("------------------------------------\n");
+    printf("  Index |   ID   |  Type  | Length  \n");
+    printf("------------------------------------\n");
+	uint32_t i = 0;
+    for(i = 0; i < max; i++) {
+		TOStoreObjID id = 0;
+        uint32_t length = 0;
+		error = ostore_getObjectIdFromIndex(store, i, &id);
+        if ( error != 0 ) break;
+		error = ostore_getLength(store, id, &length);
+        if ( error != 0 ) break;
+        printf("%8u|%8u|%8s|%8u\n", i, id, indexType(i), length);
+	}
+
+    if (error != 0) {
+        printf("There was an error reading index %d.\n", i);
+    }
+	printf("------------------------------------\n");
+}
+
 int listContentsOfStore(const TParameters& parameters) {
-    printf("TO BE DONE : %s\n", __PRETTY_FUNCTION__);
+
+	TOStoreHnd store = NULL;
+    printf("opening %s... ", parameters.m_filename.c_str());
+	int error = ostore_open(parameters.m_filename.c_str(), EReadOnly, &store);
+    if(error != ERR_OK) {
+        printf("[error %d]\n", error);
+        return 1;
+    }
+    printf("[ok]\n");
+	
+    readstore(store);
+
+	ostore_close(&store);
     return 0;
 }
 
@@ -69,10 +169,61 @@ int extractObject(const TParameters& parameters) {
 }
 
 int insertObject(const TParameters& parameters) {
-    printf("TO BE DONE : %s\n", __PRETTY_FUNCTION__);
+    TOStoreHnd store = NULL;
+    printf("opening %s... ", parameters.m_filename.c_str());
+	int error = ostore_open(parameters.m_filename.c_str(), EReadWrite, &store);
+    if(error != ERR_OK) {
+        printf("[error %d]\n", error);
+        return 1;
+    }
+    printf("[ok]\n");
+    CIOBaseRead* reader = makeReader(parameters);
+	if ( reader == NULL ) {
+        return 1;        
+    }
+
+    printf("removing existing object with ID %d... ", parameters.m_id);
+    error = ostore_removeObject(store, parameters.m_id);
+    if ( error == ERR_NOT_FOUND ) {
+        printf(" [not found - new entry]\n");
+    } else {
+        printf(" [found and removed]\n");
+    }
+    printf("adding object with ID %d... ", parameters.m_id);
+    reader->start();
+    error = ostrore_addObjectWithId(store, parameters.m_id, reader->length());
+    if ( error != 0 ) {
+        printf("[error %d]\n", error);
+        ostore_close(&store);
+        delete reader;
+        return 1;
+    }
+    printf("[ok]\n");
+    printf("writing data to object %d.", parameters.m_id);
+    uint32_t offset = 0;
+    while(reader->more()) {
+        const uint8_t* ptr = NULL;
+        uint32_t length = 0;
+        reader->next(ptr, length);
+        printf(">DEBUG length = %d\n", length);
+        if ( ptr != NULL && length > 0) {
+            printf(">DEBUG writing...\n");
+            error = ostore_write(store, parameters.m_id, offset, ptr, length);
+            offset += length;
+            printf(".");
+        }
+    }
+
+    if ( error != 0) {
+        printf(" [error %d]\n", error);
+    } else {
+        printf(" [ok]\n");
+    }
+
+	ostore_close(&store);
+    delete reader;
     return 0;
 }
-
 
 
 int main(int argc, const char* argv[]) {

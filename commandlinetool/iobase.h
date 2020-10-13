@@ -10,15 +10,14 @@ class CIOBase {
     public:
     CIOBase();
     virtual ~CIOBase() {};
-    void setup(TParameters& parameters);
+    void setup(const TParameters& parameters);
     virtual void start() = 0;
     virtual void stop() = 0;
     virtual bool ok() const = 0;
     const TParameters& parameters() const { return *m_parameters; }
-    TParameters& parameters() { return *m_parameters; }
 
     private:
-    TParameters* m_parameters;
+    const TParameters* m_parameters;
 };
 
 class CIOBaseRead : public CIOBase {
@@ -27,13 +26,14 @@ class CIOBaseRead : public CIOBase {
     virtual ~CIOBaseRead() {}
     virtual bool more() const = 0;
     virtual void next(const uint8_t*& ptr, uint32_t& length) = 0;
+    virtual uint32_t length() const = 0;
 };
 
 class CIOBaseWrite : public CIOBase {
     public:
     CIOBaseWrite() : CIOBase() {}
     virtual ~CIOBaseWrite() {}
-    virtual void next(const uint8_t* ptr, uint32_t length) = 0;
+    virtual void next(const uint8_t* ptr, uint32_t length) = 0;    
 };
 
 // CIOInputText................................................................
@@ -46,7 +46,7 @@ class CIOInputText : public CIOBaseRead {
     virtual void stop();
     virtual bool ok() const { return true; }
     virtual void next(const uint8_t*& ptr, uint32_t& length);
-
+    virtual uint32_t length() const;
     private:
     bool    m_dataread;
 };
@@ -62,7 +62,7 @@ class CIOInputFile : public CIOBaseRead {
     virtual void stop();
     virtual bool ok() const;
     virtual void next(const uint8_t*& ptr, uint32_t& length);
-
+    virtual uint32_t length() const;
     private:
     uint8_t         m_buffer[IO_STEAM_BUFFER_SIZE];
     size_t          m_fileLength;
@@ -78,7 +78,7 @@ class CIOOutputText : public CIOBaseWrite {
     virtual ~CIOOutputText() {}
     virtual void start() {}
     virtual void stop();
-    virtual bool ok() {return true; }
+    virtual bool ok() const {return true; }
     virtual void next(const uint8_t* ptr, uint32_t length);
 };
 

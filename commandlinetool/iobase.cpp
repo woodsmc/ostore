@@ -1,34 +1,48 @@
 #include "iobase.h"
 #include <string.h>
 #include <assert.h>
+#define FNPRT printf(">FUNCTION:>%s\n", __PRETTY_FUNCTION__)
 
 // CIOBase.....................................................................
 CIOBase::CIOBase() {
+    FNPRT;
     m_parameters = NULL;
 }
 
-void CIOBase::setup(TParameters& parameters) {
+void CIOBase::setup(const TParameters& parameters) {
+    FNPRT;
     m_parameters = &parameters;
 }
 
 // CIOInputText................................................................
 CIOInputText::CIOInputText() {
+    FNPRT;
     m_dataread = false;
 }
 
 void CIOInputText::start() {
+    FNPRT;
     m_dataread = false;
 }
 
 void CIOInputText::stop() {
-
+    FNPRT;
 }
 
 bool CIOInputText::more() const {
+    FNPRT;
     return (!m_dataread);
 }
 
+uint32_t CIOInputText::length() const {
+    FNPRT;
+    uint32_t retval = 0;
+    retval = parameters().m_string.size() + 1;
+    return retval;
+}
+
 void CIOInputText::next(const uint8_t*& ptr, uint32_t& length) {
+    FNPRT;
     if (!m_dataread) {
         const char* strPtr = parameters().m_string.c_str();
         const uint8_t* dataPtr = (const uint8_t*)(strPtr);
@@ -45,20 +59,24 @@ void CIOInputText::next(const uint8_t*& ptr, uint32_t& length) {
 
 // CIOInputFile................................................................
 CIOInputFile::CIOInputFile() {
-    memset(this, 0, sizeof(CIOInputFile));
+    FNPRT;
+    m_fp = NULL;
 }
 
 CIOInputFile::~CIOInputFile() {
+    FNPRT;
     stop();
 }
 
 bool CIOInputFile::more() const {
+    FNPRT;
     assert(m_fp);
     bool retval = ( !feof(m_fp) && ( m_bytesRead < m_fileLength ) );
     return retval;
 }
 
 bool CIOInputFile::ok() const {
+    FNPRT;
     bool retval = (m_fp != NULL);
     if ( retval ) {
         retval = more();
@@ -68,6 +86,7 @@ bool CIOInputFile::ok() const {
 }
 
 void CIOInputFile::start() {
+    FNPRT;
     stop();
     m_fp = fopen(parameters().m_filename.c_str(), "r");
     if (!m_fp) {
@@ -89,29 +108,42 @@ void CIOInputFile::start() {
 }
 
 void CIOInputFile::stop() {
+    FNPRT;
     if ( m_fp ) {
         fclose(m_fp);
-        m_fp = NULL;
-        m_fileLength = 0;
-        m_bytesRead = 0;
     }
+    m_fp = NULL;
+    m_fileLength = 0;
+    m_bytesRead = 0;    
+    memset(m_buffer,0, IO_STEAM_BUFFER_SIZE);
+}
+
+uint32_t CIOInputFile::length() const {
+    FNPRT;
+    uint32_t retval = 0;
+    retval = m_fileLength;
+    return retval;
 }
 
 void CIOInputFile::next(const uint8_t*& ptr, uint32_t& length) {
+    FNPRT;
     memset(m_buffer,0, IO_STEAM_BUFFER_SIZE);
     length = 0;
     ptr = NULL;
 
     if ( m_fp ) {
-        size_t bytesRemaining = m_bytesRead - m_fileLength;
+        size_t bytesRemaining = m_fileLength - m_bytesRead;
+        printf(">DEBUG bytesRemaining = %lu\n", bytesRemaining);
         if (bytesRemaining > IO_STEAM_BUFFER_SIZE - 1) {
             bytesRemaining = IO_STEAM_BUFFER_SIZE - 1;
         }
-        int read = fread(m_buffer, IO_STEAM_BUFFER_SIZE -1, 1, m_fp);
+        int read = fread(m_buffer, bytesRemaining, 1, m_fp);
+        printf(">DEBUG read = %d\n", read);
         if ( read == 1) {
             m_bytesRead += bytesRemaining;
             length = bytesRemaining;
             ptr = m_buffer;
+            printf(">DEBUG length = %u\n", length);
         } 
     }
 }
