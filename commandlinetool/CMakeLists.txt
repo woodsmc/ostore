@@ -4,7 +4,7 @@ project(ostorecmd VERSION 1.0)
 
 configure_file(ostorecmdconfig.h.in ostorecmdconfig.h)
 
-add_executable(ostorecmd parameters.cpp commandlinetool.cpp)
+add_executable(ostorecmd parameters.cpp commandlinetool.cpp iobase.cpp)
 
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
