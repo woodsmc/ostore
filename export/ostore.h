@@ -33,7 +33,7 @@ extern "C" {
 #define ERR_OVERFLOW -3         // overflow
 #define ERR_MEM -4              // malloc fails
 #define ERR_CORRUPT -5          // data is corrupted
-#define ERR_ALREADY_EXISTS -5   // it already exists
+#define ERR_ALREADY_EXISTS -6   // it already exists
 
 typedef enum {
     EReadOnly,

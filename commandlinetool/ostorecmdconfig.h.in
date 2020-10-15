@@ -4,4 +4,6 @@
 #define ostorecmd_VERSION_MAJOR @ostorecmd_VERSION_MAJOR@
 #define ostorecmd_VERSION_MINOR @ostorecmd_VERSION_MINOR@
 
+#cmakedefine CMAKE_BUILD_ON
+
 #endif // OSTORE_CONFIG_IN_H_

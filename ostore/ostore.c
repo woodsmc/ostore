@@ -28,7 +28,12 @@
 
 #include "ostore_internal.h"
 
-#include "ostoreconfig.h"
+// #include "ostoreconfig.h" <-- uncomment this when fixed
+
+#ifndef CMAKE_BUILD_ON
+#define ostore_VERSION_MAJOR 1
+#define ostore_VERSION_MINOR 2
+#endif // CMAKE_BUILD_ON
 
 // Store Handling
 int ostore_open(const char* filename, TOStreamMode mode, TOStoreHnd* oStore) {

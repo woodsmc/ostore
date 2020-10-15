@@ -23,9 +23,14 @@
 #include <stdint.h>
 
 #include "parameters.h"
-#include "ostorecmdconfig.h"
+//#include "ostorecmdconfig.h" <-- turn this back on!
 #include "ostore.h"
 #include "iobase.h"
+
+#ifndef CMAKE_BUILD_ON
+#define ostorecmd_VERSION_MAJOR 1
+#define ostorecmd_VERSION_MINOR 2
+#endif // CMAKE_BUILD_ON
 
 #define BANNER_TXT "oStore Command Line Tool, version %d.%d (c) Copyright Chris Woods 2020\n"\
 "oStore library version %d.%d (c) Copyright Chris Woods 2020\n"
@@ -189,8 +194,9 @@ int insertObject(const TParameters& parameters) {
     } else {
         printf(" [found and removed]\n");
     }
-    printf("adding object with ID %d... ", parameters.m_id);
+    
     reader->start();
+    printf("adding object with ID %d, and length %u...", parameters.m_id, reader->length());    
     error = ostrore_addObjectWithId(store, parameters.m_id, reader->length());
     if ( error != 0 ) {
         printf("[error %d]\n", error);

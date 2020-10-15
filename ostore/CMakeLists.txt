@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project(ostore VERSION 1.0.0 DESCRIPTION "object storage in single file")
 option(FULL_LIB_BUILD "Build as library" ON)
+option(CMAKE_BUILD_ON "Mark as being build with CMake, and all the version info, etc." ON)
 
 configure_file(../inc/ostoreconfig.h.in ostoreconfig.h)
 

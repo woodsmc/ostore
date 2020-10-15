@@ -4,5 +4,6 @@
 #define ostore_VERSION_MAJOR @ostore_VERSION_MAJOR@
 #define ostore_VERSION_MINOR @ostore_VERSION_MINOR@
 #cmakedefine FULL_LIB_BUILD
+#cmakedefine CMAKE_BUILD_ON
 
 #endif // OSTORE_CONFIG_IN_H_

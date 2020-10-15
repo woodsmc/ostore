@@ -1,7 +1,8 @@
 #include "iobase.h"
+#include "debug.h"
 #include <string.h>
 #include <assert.h>
-#define FNPRT printf(">FUNCTION:>%s\n", __PRETTY_FUNCTION__)
+
 
 // CIOBase.....................................................................
 CIOBase::CIOBase() {
@@ -88,18 +89,21 @@ bool CIOInputFile::ok() const {
 void CIOInputFile::start() {
     FNPRT;
     stop();
-    m_fp = fopen(parameters().m_filename.c_str(), "r");
+    PRINTF("> opening %s...\n", parameters().m_string.c_str());
+    m_fp = fopen(parameters().m_string.c_str(), "r");
     if (!m_fp) {
-        printf("I can't open %s for reading.\n", parameters().m_filename.c_str());
+        printf("I can't open %s for reading.\n", parameters().m_string.c_str());
         stop();
     } else {
         int success = fseek(m_fp, 0, SEEK_END);
+        PRINTF("> %d moved to end of file\n", success);
         if ( success == 0 ) {
             m_fileLength = ftell(m_fp);
+            PRINTF("%lu got the file length\n", m_fileLength);
             success == fseek(m_fp, 0, SEEK_SET);
         }
         if ( success != 0 ) {
-            printf("I can't get the length of %s.\n", parameters().m_filename.c_str());
+            printf("I can't get the length of %s.\n", parameters().m_string.c_str());
             stop();
             return;
         }
@@ -133,17 +137,17 @@ void CIOInputFile::next(const uint8_t*& ptr, uint32_t& length) {
 
     if ( m_fp ) {
         size_t bytesRemaining = m_fileLength - m_bytesRead;
-        printf(">DEBUG bytesRemaining = %lu\n", bytesRemaining);
+        PRINTF("bytesRemaining = %lu\n", bytesRemaining);
         if (bytesRemaining > IO_STEAM_BUFFER_SIZE - 1) {
             bytesRemaining = IO_STEAM_BUFFER_SIZE - 1;
         }
         int read = fread(m_buffer, bytesRemaining, 1, m_fp);
-        printf(">DEBUG read = %d\n", read);
+        PRINTF("read = %d\n", read);
         if ( read == 1) {
             m_bytesRead += bytesRemaining;
             length = bytesRemaining;
             ptr = m_buffer;
-            printf(">DEBUG length = %u\n", length);
+            PRINTF("DEBUG length = %u\n", length);
         } 
     }
 }

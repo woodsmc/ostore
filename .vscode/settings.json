@@ -1,7 +1,8 @@
 {
     "files.associations": {
         "stdexcept": "cpp",
-        "test_shrink": "cpp"
+        "test_shrink": "cpp",
+        "*.tcc": "cpp"
     },
     "cmake.configureOnOpen": true
 }
