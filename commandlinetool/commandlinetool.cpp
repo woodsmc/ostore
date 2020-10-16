@@ -86,7 +86,7 @@ static CIOBaseWrite* makeWriter(const TParameters& params) {
     if ( retval ) {
         retval->setup(params);
     }
-    return retval;    
+    return retval;
 }
 
 int error(const TParameters& parameters) {
@@ -98,13 +98,13 @@ int createNewStore(const TParameters& parameters) {
     TOStoreHnd store = NULL;
     printf("creating %s... ", parameters.m_filename.c_str());
     int error = ostore_create(parameters.m_filename.c_str(), &store);
-    
+
     if(error != ERR_OK) {
         printf("[error %d]\n", error);
         return 1;
     }
     ostore_close(&store);
-    printf("[ok]\n");    
+    printf("[ok]\n");
     return 0;
 }
 
@@ -122,7 +122,7 @@ static const char* indexType(uint32_t in) {
 }
 
 static void readstore(TOStoreHnd store) {
-	
+
 	uint32_t max = 0;
     printf("number of objects... ");
 	int error = ostore_enumerateObjects(store, &max);
@@ -161,7 +161,7 @@ int listContentsOfStore(const TParameters& parameters) {
         return 1;
     }
     printf("[ok]\n");
-	
+
     readstore(store);
 
 	ostore_close(&store);
@@ -184,7 +184,7 @@ int insertObject(const TParameters& parameters) {
     printf("[ok]\n");
     CIOBaseRead* reader = makeReader(parameters);
 	if ( reader == NULL ) {
-        return 1;        
+        return 1;
     }
 
     printf("removing existing object with ID %d... ", parameters.m_id);
@@ -194,9 +194,9 @@ int insertObject(const TParameters& parameters) {
     } else {
         printf(" [found and removed]\n");
     }
-    
+
     reader->start();
-    printf("adding object with ID %d, and length %u...", parameters.m_id, reader->length());    
+    printf("adding object with ID %d, and length %u...", parameters.m_id, reader->length());
     error = ostrore_addObjectWithId(store, parameters.m_id, reader->length());
     if ( error != 0 ) {
         printf("[error %d]\n", error);
@@ -207,7 +207,8 @@ int insertObject(const TParameters& parameters) {
     printf("[ok]\n");
     printf("writing data to object %d.", parameters.m_id);
     uint32_t offset = 0;
-    while(reader->more()) {
+    error = 0;
+    while(reader->more() && error == 0) {
         const uint8_t* ptr = NULL;
         uint32_t length = 0;
         reader->next(ptr, length);
@@ -233,14 +234,14 @@ int insertObject(const TParameters& parameters) {
 
 
 int main(int argc, const char* argv[]) {
-    printf(BANNER_TXT, 
+    printf(BANNER_TXT,
         ostorecmd_VERSION_MAJOR, ostorecmd_VERSION_MINOR,
         ostore_version_major(), ostore_version_minor());
     TParameters parameters;
-    parameters.populate(argc, argv);    
+    parameters.populate(argc, argv);
     parameters.validate();
     parameters.print();
-    
+
     int retval = STOREFUNCTIONS[parameters.m_function](parameters);
 
     return retval;

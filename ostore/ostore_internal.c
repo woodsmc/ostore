@@ -321,7 +321,7 @@ int writeWithIndex(TOStoreHnd store, const TDskObjIndex* header, uint32_t positi
 
         if ( sequenceNumber !=  startingBlock ) {
             index = currentBlockHdr.next;
-            VALIDATE(index != NO_BLOCK, ERR_CORRUPT);
+            VALIDATE(index == NO_BLOCK, ERR_CORRUPT);
         }
     }
 
