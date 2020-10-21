@@ -37,6 +37,8 @@
 			<Add directory="../inc" />
 		</Compiler>
 		<Unit filename="../commandlinetool/commandlinetool.cpp" />
+		<Unit filename="../commandlinetool/debug.cpp" />
+		<Unit filename="../commandlinetool/debug.h" />
 		<Unit filename="../commandlinetool/iobase.cpp" />
 		<Unit filename="../commandlinetool/iobase.h" />
 		<Unit filename="../commandlinetool/parameters.cpp" />

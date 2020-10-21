@@ -176,7 +176,7 @@ CIOOutputFile::~CIOOutputFile() {
 
 void CIOOutputFile::start() {
     stop();
-    m_fp  = fopen(parameters().m_filename.c_str(), "w");
+    m_fp  = fopen(parameters().m_string.c_str(), "w");
     if ( m_fp == NULL ) {
         printf("I could not open the output file %s.\n", parameters().m_filename.c_str() );
         return;

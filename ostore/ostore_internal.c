@@ -471,7 +471,7 @@ int readObjectIndex(TOStoreHnd oStore, TOStoreObjID id, TDskObjIndex* header){
 
 // Reading and Writing Data
 int readWithIndex(TOStoreHnd store, const TDskObjIndex* header, uint32_t position, uint32_t length, void* destination) {
-   START;
+    START;
 
     uint32_t objectSizeInBytes = store->fileHeader.header.blockSize * header->numberOfBlocks;
     uint32_t endOfRead = position + length;
@@ -498,7 +498,7 @@ int readWithIndex(TOStoreHnd store, const TDskObjIndex* header, uint32_t positio
         IF_NOT_OK_HANDLE_ERROR(retval);
         sequenceBlock--;
         if ( sequenceBlock > 0 ) {
-            VALIDATE(index != NO_BLOCK, ERR_CORRUPT);
+            VALIDATE(index == NO_BLOCK, ERR_CORRUPT);
             index = currentBlockHdr.next;
         }
     }
@@ -506,7 +506,7 @@ int readWithIndex(TOStoreHnd store, const TDskObjIndex* header, uint32_t positio
     // we have found the right block, now we need to read until we've consumed all data
     memset(destination, 0, length);
     consumedData = 0;
-    offsetInBlock = position - (sequenceBlock * store->fileHeader.header.blockSize);
+    offsetInBlock = position - (currentBlockHdr.sequenceNumber * store->fileHeader.header.blockSize);
     dest = (uint8_t*) destination;
     lengthRemaining = length;
 

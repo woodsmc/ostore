@@ -26,6 +26,7 @@
 //#include "ostorecmdconfig.h" <-- turn this back on!
 #include "ostore.h"
 #include "iobase.h"
+#include "debug.h"
 
 #ifndef CMAKE_BUILD_ON
 #define ostorecmd_VERSION_MAJOR 1
@@ -169,7 +170,71 @@ int listContentsOfStore(const TParameters& parameters) {
 }
 
 int extractObject(const TParameters& parameters) {
-    printf("TO BE DONE : %s\n", __PRETTY_FUNCTION__);
+    FNPRT;
+    TOStoreHnd store = NULL;
+    printf("opening %s... ", parameters.m_filename.c_str());
+    uint8_t* buffer = new uint8_t[IO_STEAM_BUFFER_SIZE];
+    if (buffer == NULL) {
+        printf("not enough memory available!\n");
+        return 1;
+    }
+
+    PRINTF("---------\n");
+	int error = ostore_open(parameters.m_filename.c_str(), EReadOnly, &store);
+    PRINTF("---------\n");
+    if(error != ERR_OK) {
+        printf("[error %d]\n", error);
+        return 1;
+    }
+    printf("[ok]\n");    
+
+    CIOBaseWrite* writer = makeWriter(parameters);
+    if ( writer == NULL) {
+        return 1;
+    }
+
+    uint32_t lengthOfObject = 0;
+    printf("checking for object with id %u and getting it's length ...", parameters.m_id);
+    error = ostore_getLength(store, parameters.m_id, &lengthOfObject);
+    if ( error != 0 ) {
+        if ( error == ERR_NOT_FOUND) {
+            printf("[not found]\n");
+        } else {
+            printf("[error %d]\n", error);
+        }
+        delete [] buffer;
+        delete writer;
+        return 1;
+    }
+    printf("length is %u [ok]\n", lengthOfObject);
+    printf("reading object...");
+    writer->start();
+    uint32_t bytesRead = 0;
+    uint32_t bytesRemaining = lengthOfObject;
+    while(bytesRead < lengthOfObject) {
+        memset(buffer, 0, IO_STEAM_BUFFER_SIZE);
+        uint32_t bytesToReadThisTime = IO_STEAM_BUFFER_SIZE;
+        if ( bytesRemaining < IO_STEAM_BUFFER_SIZE) {
+            bytesToReadThisTime = bytesRemaining;
+        }
+        PRINTF("ostore_read(store, parameters.m_id, bytesRead[%u], bytesToReadThisTime[%u], buffer)\n", bytesRead, bytesToReadThisTime);
+        error = ostore_read(store, parameters.m_id, bytesRead, bytesToReadThisTime, buffer);
+        if ( error != 0 ) {
+            printf("[error %d]", error);
+            writer->stop();
+            delete [] buffer;
+            delete writer;            
+            return 1;
+        }
+
+        writer->next(buffer, bytesToReadThisTime);
+        bytesRead += bytesToReadThisTime;
+        bytesRemaining -= bytesToReadThisTime;
+    }
+    printf("[ok]\n");
+    writer->stop();
+    delete writer;
+    delete [] buffer;
     return 0;
 }
 
