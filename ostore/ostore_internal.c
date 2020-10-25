@@ -684,6 +684,7 @@ void zfree( void* ptr ) {
 const char* errorText(int error) {
     if (error > 0 ) error = 0;
     error = abs(error);
+    assert(error <= ERR_ALREADY_EXISTS);
     return ERROR_TEXT[error];
 }
 

@@ -25,6 +25,10 @@ struct _FN_DEBUG_ {
     }
 };
 
-
+#ifdef DEBUG_ON
 #define FNPRT  _FN_DEBUG_ _dbg_( __PRETTY_FUNCTION__)
 #define PRINTF _FN_DEBUG_::fill(); printf("| "); printf
+#else 
+#define FNPRT 
+#define PRINTF
+#endif // DEBUG_ON
