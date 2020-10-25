@@ -174,4 +174,7 @@ int writeObjectCount(TOStoreHnd store);
 
 int readFromFile(FILE* fp, uint32_t offset, uint32_t length, uint8_t* buffer);
 int writeToFile(FILE* fp, uint32_t offset, uint32_t length, const uint8_t* buffer);
+
+const char* errorText(int error);
+void printErrorText(int error);
 #endif // OSTOREINTERNAL_H__

@@ -148,6 +148,7 @@ void CIOInputFile::next(const uint8_t*& ptr, uint32_t& length) {
             length = bytesRemaining;
             ptr = m_buffer;
             PRINTF("DEBUG length = %u\n", length);
+            PRINTF("DEBUG [%s]\n", (const char*) ptr);
         } 
     }
 }

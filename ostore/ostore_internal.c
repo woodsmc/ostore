@@ -19,6 +19,17 @@
 
 
 #include "ostore_internal.h"
+#include "debug.h"
+
+static const char* ERROR_TEXT[] = {
+    "(0)  no error",
+    "(-1) not found",
+    "(-2) general",
+    "(-3) overflow",
+    "(-4) no memory",
+    "(-5) corrupt",
+    "(-6) already exists"
+};
 
 static const int8_t BLOCK_FILL[4] = { 'E', 'M', 'P', 'Y'};
 
@@ -308,22 +319,28 @@ int writeWithIndex(TOStoreHnd store, const TDskObjIndex* header, uint32_t positi
 
     // fast forward to the starting block
     // this iterates forward, but could be smart and work backward if that is less steps (TODO)
-    uint32_t index = header->headBlock;
+    // reads the first, head block, so this is sequenceNumber == 0 == startingBlock
+    //uint32_t index = header->headBlock;
     LOCAL_MEMZ(TDskObjectStoreBlockHeader, currentBlockHdr);
-    retval = readBlockHeader(store, &currentBlockHdr, index);
-    IF_NOT_OK_HANDLE_ERROR(retval);
+    //retval = readBlockHeader(store, &currentBlockHdr, index);
+    //IF_NOT_OK_HANDLE_ERROR(retval);
 
-    while(sequenceNumber != startingBlock && index != NO_BLOCK) {
-        INIT(TDskObjectStoreBlockHeader, currentBlockHdr);
+    PRINTF("startingBlock = %u\n", startingBlock);
+    for(sequenceNumber = 0; sequenceNumber < (startingBlock+1); sequenceNumber++) {
+        uint32_t index = currentBlockHdr.next;
+        if(sequenceNumber == 0) {
+            index = header->headBlock;
+        }
+        VALIDATE(index == NO_BLOCK, ERR_CORRUPT);
         retval = readBlockHeader(store, &currentBlockHdr, index);
         IF_NOT_OK_HANDLE_ERROR(retval);
-        sequenceNumber++;
-
-        if ( sequenceNumber !=  startingBlock ) {
-            index = currentBlockHdr.next;
-            VALIDATE(index == NO_BLOCK, ERR_CORRUPT);
-        }
+        PRINTF("SEEKING: sequenceNumber = %u | currentBlockHdr.sequenceNumber = %u | currentBlockHdr.blockFileIndex = %u\n",
+        sequenceNumber, currentBlockHdr.sequenceNumber, currentBlockHdr.blockFileIndex);
     }
+
+    PRINTF(" FOUND:: sequenceNumber = %u | currentBlockHdr.sequenceNumber = %u | currentBlockHdr.blockFileIndex = %u\n",
+    sequenceNumber, currentBlockHdr.sequenceNumber, currentBlockHdr.blockFileIndex);
+ 
 
 
     // write in each subsequent block
@@ -336,6 +353,8 @@ int writeWithIndex(TOStoreHnd store, const TDskObjIndex* header, uint32_t positi
     sourceOffset = 0;
     // loop and work here
     while(lengthRemaining > 0) {
+        PRINTF("WRITING: source [offset=%u][bytesToWrite=%u][position = %u | total length=%u] | [block=%u | sequence=%u][offset=%u]\n", 
+            sourceOffset, bytesToWrite, position, length, currentBlockHdr.sequenceNumber, currentBlockHdr.blockFileIndex, offset);
         uint32_t positionInFile = CONVERT_TO_FILE_OFFSET(currentBlockHdr.blockFileIndex, store->fileHeader.header.blockSize, offset);
         retval = writeToFile(store->fp, positionInFile, bytesToWrite, &sourceArray[sourceOffset]);
         IF_NOT_OK_HANDLE_ERROR(retval);
@@ -352,7 +371,8 @@ int writeWithIndex(TOStoreHnd store, const TDskObjIndex* header, uint32_t positi
 
 
     PROCESS_ERROR;
-
+    PRINTF("Error handling:\n");
+    PRINTF("error %s\n", errorText(retval));
     FINISH;
 }
 
@@ -658,4 +678,15 @@ void zfree( void* ptr ) {
     if ( ptr != NULL ) {
         free(ptr);
     }
+}
+
+
+const char* errorText(int error) {
+    if (error > 0 ) error = 0;
+    error = abs(error);
+    return ERROR_TEXT[error];
+}
+
+void printErrorText(int error) {
+    printf("%s\n", errorText(error));
 }

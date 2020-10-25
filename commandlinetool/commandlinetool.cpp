@@ -179,9 +179,7 @@ int extractObject(const TParameters& parameters) {
         return 1;
     }
 
-    PRINTF("---------\n");
 	int error = ostore_open(parameters.m_filename.c_str(), EReadOnly, &store);
-    PRINTF("---------\n");
     if(error != ERR_OK) {
         printf("[error %d]\n", error);
         return 1;
