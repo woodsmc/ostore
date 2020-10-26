@@ -14,3 +14,4 @@ target_link_libraries(ostorecmd PUBLIC ostore)
 target_include_directories(ostorecmd PUBLIC "${PROJECT_BINARY_DIR}")
 target_include_directories(ostorecmd PUBLIC "../export")
 
+install(TARGETS ostorecmd DESTINATION bin)

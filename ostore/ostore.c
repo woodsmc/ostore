@@ -28,7 +28,7 @@
 
 #include "ostore_internal.h"
 
-// #include "ostoreconfig.h" <-- uncomment this when fixed
+#include "ostoreconfig.h"
 
 #ifndef CMAKE_BUILD_ON
 #define ostore_VERSION_MAJOR 1

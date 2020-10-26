@@ -23,20 +23,15 @@
 #include <stdint.h>
 
 #include "parameters.h"
-//#include "ostorecmdconfig.h" <-- turn this back on!
 #include "ostore.h"
 #include "iobase.h"
 #include "debug.h"
-
+#include "ostorecmdconfig.h"
 #ifndef CMAKE_BUILD_ON
 #define ostorecmd_VERSION_MAJOR 1
 #define ostorecmd_VERSION_MINOR 2
 #endif // CMAKE_BUILD_ON
 
-#define BANNER_TXT "oStore Command Line Tool, version %d.%d (c) Copyright Chris Woods 2020\n"\
-"oStore library version %d.%d (c) Copyright Chris Woods 2020\n"
-
-#define ERROR_STOP_TXT  "There is an error, and I can not continue.\n"
 
 
 typedef int (*TStoreFunction)(const TParameters& parameters);
@@ -91,7 +86,6 @@ static CIOBaseWrite* makeWriter(const TParameters& params) {
 }
 
 int error(const TParameters& parameters) {
-    printf(ERROR_STOP_TXT);
     return 1;
 }
 
@@ -275,9 +269,9 @@ int insertObject(const TParameters& parameters) {
         const uint8_t* ptr = NULL;
         uint32_t length = 0;
         reader->next(ptr, length);
-        printf(">DEBUG length = %d\n", length);
+        //printf(">DEBUG length = %d\n", length);
         if ( ptr != NULL && length > 0) {
-            printf(">DEBUG writing...\n");
+            //printf(">DEBUG writing...\n");
             error = ostore_write(store, parameters.m_id, offset, ptr, length);
             offset += length;
             printf(".");
@@ -297,13 +291,9 @@ int insertObject(const TParameters& parameters) {
 
 
 int main(int argc, const char* argv[]) {
-    printf(BANNER_TXT,
-        ostorecmd_VERSION_MAJOR, ostorecmd_VERSION_MINOR,
-        ostore_version_major(), ostore_version_minor());
     TParameters parameters;
     parameters.populate(argc, argv);
     parameters.validate();
-    parameters.print();
 
     int retval = STOREFUNCTIONS[parameters.m_function](parameters);
 

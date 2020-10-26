@@ -23,6 +23,12 @@
 #include <string>
 #include <string.h>
 #include <stdint.h>
+#include "ostore.h"
+#include "ostorecmdconfig.h"
+#ifndef CMAKE_BUILD_ON
+#define ostorecmd_VERSION_MAJOR 1
+#define ostorecmd_VERSION_MINOR 2
+#endif // CMAKE_BUILD_ON
 
 #define OBJECT_IS_NUM_TXT "An object ID must be a decemal number > 10\n"
 #define LIST_GUESS_TXT "You've not provided a function,I'm guessing you want to list the contents of a oStore.\n"
@@ -33,6 +39,10 @@
 #define CREATE_FUNCTION_TXT "command: create ostore\n"
 #define EXTRACT_FUNCTION_TXT "command: extract\n"
 #define TYPE_INFO_NOT_CLEAR_TXT "Did you mean TEXT|T or FILE|F? I'm confused.\n"
+#define BANNER_TXT "ostorecmd Command Line Tool, version %d.%d (c) Copyright Chris Woods 2020\n"\
+"oStore library version %d.%d (c) Copyright Chris Woods 2020\n"
+#define USAGE_TXT "   ostorecmd <filename> (-create | -list | -extract | -insert ) <ID> (FILE | TEXT) [<outfile> | <text>]"
+#define ERROR_STOP_TXT  "There is an error, and I can not continue. But check out the usage information, that might help...\n\n"\
 
 struct TStringMap {
     int id;
@@ -79,6 +89,18 @@ static const TStringMap TYPE_MAP[] = {
 };
 
 static const uint32_t TYPE_MAP_MAX = 7;
+
+void displayBanner() {
+    printf(BANNER_TXT,
+        ostorecmd_VERSION_MAJOR, ostorecmd_VERSION_MINOR,
+        ostore_version_major(), ostore_version_minor());
+}
+
+void displayErrorMessage() {
+    displayBanner();
+    printf(ERROR_STOP_TXT);
+    printf("%s\n", USAGE_TXT);
+}
 
 static int processMap(const TStringMap map[], uint32_t mapSize, const char* search) {
     int retval = 0;
@@ -171,12 +193,18 @@ void TParameters::validate() {
 
     switch (m_function) {
         case EMalformed:
+        displayErrorMessage();
         break;
 
         case ENoFunction:
         if (m_argc == 2) {
             m_function = EList;
             printf(LIST_GUESS_TXT);
+        } else if (m_argc == 1) {
+            displayBanner();
+            printf("%s\n", USAGE_TXT);
+        } else {
+            displayErrorMessage();
         }
 
         case EList:
@@ -184,6 +212,7 @@ void TParameters::validate() {
         if ( m_argc > 3) {
             m_function = EMalformed;
             printf(TOO_MANY_ARGS_TXT);
+            displayErrorMessage();
         }
         break;
 
@@ -196,11 +225,13 @@ void TParameters::validate() {
         if (m_argc < MAXARGUMENTS ) {
             m_function = EMalformed;
             printf(TOO_FEW_ARGS_TXT);
+            displayErrorMessage();
         }
 
         if ( m_type == ENoType) {
             m_function = EMalformed;
             printf(TYPE_INFO_NOT_CLEAR_TXT);
+            displayErrorMessage();
         }
         break;
 
@@ -208,26 +239,31 @@ void TParameters::validate() {
         switch(m_type) {
             case ENoType:
                 m_function = EMalformed;
-                printf(TYPE_INFO_NOT_CLEAR_TXT);            
+                printf(TYPE_INFO_NOT_CLEAR_TXT);
+                displayErrorMessage();
             break;
             case EFile:
                 if (m_argc > MAXARGUMENTS) {
                     m_function = EMalformed;
                     printf(TOO_MANY_ARGS_TXT);
+                    displayErrorMessage();
                 }
                 if (m_argc < MAXARGUMENTS ) {
                     m_function = EMalformed;
                     printf(TOO_FEW_ARGS_TXT);
+                    displayErrorMessage();
                 }            
             break;
             case EText:
                 if (m_argc > MAXARGUMENTS -1 ) {
                     m_function = EMalformed;
                     printf(TOO_MANY_ARGS_TXT);
+                    displayErrorMessage();
                 }
                 if (m_argc < MAXARGUMENTS -1 ) {
                     m_function = EMalformed;
                     printf(TOO_FEW_ARGS_TXT);
+                    displayErrorMessage();
                 }            
             break;
         }
@@ -235,6 +271,7 @@ void TParameters::validate() {
         if ( m_function == EExtract && m_type == EText && m_argc > 5 ) {
             m_function = EMalformed;
             printf(TOO_MANY_ARGS_TXT);
+            displayErrorMessage();
         }
         break;        
     }
