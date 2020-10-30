@@ -69,6 +69,7 @@ obj/
 test/test.store
 test/test_makeempty
 test/test_readstore
+test_stores/
 
 ## cmake
 build/
