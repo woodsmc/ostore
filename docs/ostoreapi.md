@@ -10,11 +10,12 @@ This document describes the API provided by OStore. It does not define the file 
 
 ## Document Version History
 
-| Version | Date           | Author      | Comment                           |
-| ------- | -------------- | ----------- | --------------------------------- |
-| 0.1     | August 4 2020  | Chris Woods | Initial concept documented        |
-| 0.2     | August 27 2020 | Chris Woods | Refined as part of implementation |
-| 0.3     | October 4 2020 | Chris Woods | Updated API function names        |
+| Version | Date            | Author      | Comment                                            |
+| ------- | --------------- | ----------- | -------------------------------------------------- |
+| 0.1     | August 4 2020   | Chris Woods | Initial concept documented                         |
+| 0.2     | August 27 2020  | Chris Woods | Refined as part of implementation                  |
+| 0.3     | October 4 2020  | Chris Woods | Updated API function names                         |
+| 0.4     | October 29 2020 | Chris Woods | Small correction to function names for consistency |
 
 
 
@@ -239,7 +240,7 @@ This function will assert on:
 #### `ostrore_addObjectWithId`
 
 ```c
-int ostrore_addObjectWithId(TOStoreHnd oStore, TOStoreObjID id, uint32_t length);
+int ostore_addObjectWithId(TOStoreHnd oStore, TOStoreObjID id, uint32_t length);
 ```
 
 **Function Description:** Adds an object to the store with a specified ID.

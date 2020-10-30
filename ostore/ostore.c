@@ -250,7 +250,7 @@ int ostore_objectIdExists(TOStoreHnd store, TOStoreObjID id) {
 }
 
 // Object Management
-int ostrore_addObjectWithId(TOStoreHnd store, TOStoreObjID id, uint32_t length) {
+int ostore_addObjectWithId(TOStoreHnd store, TOStoreObjID id, uint32_t length) {
     assert(store != NULL);
     // check to make sure an object with the same id doesn't exist
     START;

@@ -254,7 +254,7 @@ int insertObject(const TParameters& parameters) {
 
     reader->start();
     printf("adding object with ID %d, and length %u...", parameters.m_id, reader->length());
-    error = ostrore_addObjectWithId(store, parameters.m_id, reader->length());
+    error = ostore_addObjectWithId(store, parameters.m_id, reader->length());
     if ( error != 0 ) {
         printf("[error %d]\n", error);
         ostore_close(&store);

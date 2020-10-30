@@ -55,7 +55,7 @@ int ostore_getObjectIdFromIndex(TOStoreHnd oStore, uint32_t objectIndex, TOStore
 int ostore_objectIdExists(TOStoreHnd oStore, TOStoreObjID id);
 
 // Object Management
-int ostrore_addObjectWithId(TOStoreHnd oStore, TOStoreObjID id, uint32_t length);
+int ostore_addObjectWithId(TOStoreHnd oStore, TOStoreObjID id, uint32_t length);
 int ostore_removeObject(TOStoreHnd oStore, TOStoreObjID id);
 
 // Object Operations

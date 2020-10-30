@@ -122,7 +122,7 @@ void makestore(const char* filename) {
 
     for(uint32_t i =0 ; i < STRINGS; i++) {
         const uint32_t SIZE = strlen(STRING[i]) + 1;
-        error = ostrore_addObjectWithId(store, STRINGID[i], SIZE);
+        error = ostore_addObjectWithId(store, STRINGID[i], SIZE);
         printf("[%d] object added [%u]\n", error, STRINGID[i]);
         assert(error == ERR_OK);
         error = ostore_write(store, STRINGID[i], 0, STRING[i], SIZE);
