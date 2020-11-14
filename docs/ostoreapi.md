@@ -421,10 +421,10 @@ This function will assert on:
 - `position` + `length` exceeds the length of the current object.
 - `destination` is NULL.
 
-#### `ostoreobj_write`
+#### `ostore_write`
 
 ```c
-int ostoreobj_write(TOStoreHnd oStore, TOStoreObjID id, uint32_t position, 
+int ostore_write(TOStoreHnd oStore, TOStoreObjID id, uint32_t position, 
                     const void* source, uint32_t length);
 ```
 
