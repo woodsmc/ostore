@@ -23,7 +23,7 @@ This document describes the API provided by OStore. It does not define the file 
 
 The OStore library is based around the concept of "objects".  A single OStore file will contain a series of objects. Each object is a variable length entity. This could be an array, a data structure, a string or byte sequence. As a user we can open a file, enumerate though the stored objects, open objects query their length, and then read and write from the object.
 
-<insert image of file containing multiple objects>
+<insert image of file containing multiple objects> ** TO DO **
 
 ## How Objects are Handled
 
