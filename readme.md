@@ -14,9 +14,18 @@ In the forum posts we looked at alternative solutions, but I didn't feel we foun
 
 My ideal solution would be a storage solution that would work on these middle ground devices, and up, including Raspberry Pi's and the like. 
 
-### Why
+### Alternatives
 
-"Because it is there" - is often the answer when you ask a mountaineer why they climb. Hey, writing this was a bit of fun, and I wanted to have a go. It might be useful to others, so I'll share it here.
+The alternatives I considered where:
+
+- [RocksDB](https://rocksdb.org/) : Like the API, but too heavy for the platform
+- [Sophia Embeddable Key Value Store](http://sophia.systems/) : Looks complicated for what I needed
+- [SQLite](https://sqlite.org/index.html) Well loved and for good reason, but a bit too heavy for what I need
+- C++ std::map  - Nice look up speed, but everything is held in RAM, I'd like the std::map on disk / file.
+
+### Why OStore
+
+"Because it is there" - is often the answer when you ask a mountaineer why they climb. Hey, writing this was a bit of fun, and I wanted to have a go. It might be useful to others, so I'll share it here. In addition the alternatives outlined above all seemed to not quite fit. So, hey, why not try.
 
 ## Outline Requirements
 
