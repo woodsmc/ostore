@@ -6,7 +6,7 @@ Large sets of data can be impossible to hold in RAM simultaneously, as the platf
 
 ## Original Motivation
 
-I searched for solutions to this problem [I posted on Reddit in the C](https://www.reddit.com/r/C_Programming/comments/i31zwf/library_to_help_store_multiple_objects_inside_a/?utm_source=share&utm_medium=web2x&context=3) and in the [IoT Subreddits](https://www.reddit.com/r/IOT/comments/i3ikwn/library_to_help_store_multiple_objects_inside_a/). The discussions highlighted the small niche of the problem space. Ether devices are very small, in which connectivity is via a local link to a gateway device which does all the heavy lifting and needs the larger set of configuration settings, or the devices are larger and more capable. The more capable devices could use something like SQLite for storage. 
+I searched for solutions to this problem [I posted on Reddit in the C](https://www.reddit.com/r/C_Programming/comments/i31zwf/library_to_help_store_multiple_objects_inside_a/?utm_source=share&utm_medium=web2x&context=3) , [IoT](https://www.reddit.com/r/IOT/comments/i3ikwn/library_to_help_store_multiple_objects_inside_a/) , and [the Embedded subreddits](https://www.reddit.com/r/embedded/comments/jo3wmz/a_key_value_store_for_embedded_devices_any/). The discussions highlighted the small niche of the problem space. Ether devices are very small, in which connectivity is via a local link to a gateway device which does all the heavy lifting and needs the larger set of configuration settings, or the devices are larger and more capable. The more capable devices could use something like SQLite for storage. 
 
 However, for me, there is a middle ground. A set of devices which are cheap, connect to the internet, but don't have the capability to run SQLite.
 
