@@ -48,7 +48,7 @@ More detailed documentation can be found at the following locations:
 
 - [Command Line Tool and Usage](docs/ostorecommandlinetool.md)
 - [API Specification](docs/ostoreapi.md)
-- [File Format Specification](docs/ostorefileformat.md)  - work in progress
+- [File Format Specification](docs/ostorefileformat.md)  
 
 
 
