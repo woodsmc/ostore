@@ -19,7 +19,7 @@ The start of the file always includes a file header. This header contains an ide
 
 This allows the oStore to be configured with different block payload sizes depending on the data types being stored. At the time of writing the block size is set, hard coded in code as 128 bytes.
 
-![FileheaderAndOverview](/home/chris/development/ostore/docs/FileheaderAndOverview.png)
+![FileheaderAndOverview](./FileheaderAndOverview.png)
 
 The File header is defined as follows:
 
@@ -40,7 +40,7 @@ https://github.com/woodsmc/ostore/blob/4e40978d5c79a510e77fb92d4b99c12e564e8669/
 
 With the exception of the file header all data is stored in a block. Each block contains a header. The headers always precede the "payload" or actual data being stored within the block. Since it is imagined that a block will only ever store data for an object, and that all objects have IDs, the block header always contains information to identify the object to which it belongs, it's position within the double linked list which constituents that object.
 
-![BlockHeaderOverview](/home/chris/development/ostore/docs/BlockHeaderOverview.png)
+![BlockHeaderOverview](./BlockHeaderOverview.png)
 
 The block header is structure like this:
 
@@ -68,7 +68,7 @@ As mentioned an oStore always contains an initial block, block zero (0), which i
 
 An initial Block Sequence (Block 0) stores a table of objects. Objects are represented as a series of blocks, a "block sequence" if you will within the file. Each entry stores the initial header block, the tail block and the assigned ID of the block sequence.
 
-![ObjectTableOverview](/home/chris/development/ostore/docs/ObjectTableOverview.png)
+![ObjectTableOverview](./ObjectTableOverview.png)
 
 The Object Handling data stores the number of blocks, then an entry per block:
 
