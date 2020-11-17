@@ -78,6 +78,14 @@ The Object Handling data stores the number of blocks, then an entry per block:
   - ID : uint32_t
   - Head Block : uint32_t
   - Tail Block : uint32_t
+  
+
+This table entry is represented in code as `TDskObjIndex`:
+
+https://github.com/woodsmc/ostore/blob/4e40978d5c79a510e77fb92d4b99c12e564e8669/inc/ostore_internal.h#L115-L121
+
+#### Reserved IDs
+
 
 There are a set of reserved ID values, these are used to store housekeeping information, they are as follows:
 
